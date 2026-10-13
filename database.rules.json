@@ -1,0 +1,21 @@
+{
+  "rules": {
+    ".read": true,
+    "schedules": {
+      ".write": "auth != null && (auth.token.admin === true || auth.token.testAdmin === true)"
+    },
+    "locations": {
+      ".write": "auth != null && (auth.token.admin === true || auth.token.testAdmin === true)"
+    },
+    "uniforms": {
+      ".write": "auth != null && (auth.token.admin === true || auth.token.testAdmin === true)"
+    },
+    "test": {
+      ".write": "auth != null && (auth.token.admin === true || auth.token.testAdmin === true)"
+    },
+    "aft_sessions": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
