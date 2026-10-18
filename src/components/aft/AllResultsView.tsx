@@ -302,7 +302,7 @@ export const AllResultsView: React.FC<AllResultsViewProps> = ({
           <button
             onClick={onBackToLanes}
             className="flex items-center gap-1 rounded-lg bg-blue-800 px-2.5 py-1.5 text-xs font-black text-white active:scale-95 hover:bg-blue-700 uppercase shrink-0 shadow"
-            title={`돌아가기 (${backButtonLabel})`}
+            title={`Back (${backButtonLabel})`}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
@@ -312,15 +312,25 @@ export const AllResultsView: React.FC<AllResultsViewProps> = ({
 
           {/* Center: Title + Concise 3-item Stats (Total · Fail · Recycle) */}
           <div className="text-center min-w-0 flex flex-col items-center justify-center">
-            <h1 className="text-sm sm:text-base font-black tracking-wider leading-tight">
+            <h1 className="text-sm sm:text-base font-black tracking-wider leading-tight whitespace-nowrap">
               SCORECARD
             </h1>
-            <div className="text-[10px] sm:text-[11px] font-bold text-blue-200 uppercase tracking-wide mt-0.5 flex items-center gap-1 whitespace-nowrap">
+            {/* Desktop View: Full Labels */}
+            <div className="hidden sm:flex text-[11px] font-bold text-blue-200 uppercase tracking-wide mt-0.5 items-center gap-1 whitespace-nowrap">
               <span>Total <strong className="text-white">{totalCount}</strong></span>
               <span>·</span>
               <span>Fail <strong className="text-amber-300">{failedCount}</strong></span>
               <span>·</span>
               <span>Recycle <strong className="text-red-400">{recycleCount}</strong></span>
+            </div>
+
+            {/* Mobile View: Numbers format "T / F / R" */}
+            <div className="sm:hidden text-xs font-bold text-blue-200 tracking-wider mt-0.5 flex items-center gap-1.5 whitespace-nowrap">
+              <strong className="text-white" title="Total">{totalCount}</strong>
+              <span className="text-blue-400/70 font-normal">/</span>
+              <strong className="text-amber-300" title="Fail">{failedCount}</strong>
+              <span className="text-blue-400/70 font-normal">/</span>
+              <strong className="text-red-400" title="Recycle">{recycleCount}</strong>
             </div>
           </div>
 
@@ -330,7 +340,7 @@ export const AllResultsView: React.FC<AllResultsViewProps> = ({
               <button
                 onClick={onOpenReTest}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 active:scale-95 text-white text-[10px] font-black shadow transition-all border border-red-400 shrink-0"
-                title="Fail 인원 재시험 채점 화면으로 이동"
+                title="Go to Re-Test grading screen"
               >
                 <span>♻️</span>
                 <span>Re-Test</span>
@@ -345,7 +355,7 @@ export const AllResultsView: React.FC<AllResultsViewProps> = ({
             <button
               onClick={handleExportExcel}
               className="flex items-center justify-center px-2 py-1.5 rounded-lg bg-emerald-700 border border-emerald-600 text-[10px] font-black text-white hover:bg-emerald-600 active:scale-95 shadow transition-all shrink-0"
-              title="엑셀 파일로 다운로드"
+              title="Download Excel file"
             >
               <span>📥</span>
               <span className="hidden sm:inline ml-1">Export</span>

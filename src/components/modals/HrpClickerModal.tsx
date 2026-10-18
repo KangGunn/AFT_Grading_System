@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { TraineeRecord, LaneConfig } from '../../types/aft/aft.types';
-import { getOfficialPassingStandard, calculateOfficialAftScore } from '../../data/aftStandards2025';
+import { calculateOfficialAftScore } from '../../data/aftStandards2025';
 
 interface HrpClickerModalProps {
   trainee: TraineeRecord;
@@ -42,10 +42,10 @@ export const HrpClickerModal: React.FC<HrpClickerModalProps> = ({
     };
   }, [isOpen, trainee.id, trainee.scores.HRP]);
 
-  const triggerHaptic = (durationMs = 25) => {
+  const triggerHaptic = (pattern: number | number[] = 25) => {
     try {
       if (typeof window !== 'undefined' && 'vibrate' in navigator) {
-        navigator.vibrate(durationMs);
+        navigator.vibrate(pattern);
       }
     } catch {
       // Ignore vibration errors if unsupported
@@ -53,6 +53,9 @@ export const HrpClickerModal: React.FC<HrpClickerModalProps> = ({
   };
 
   const startTimer = () => {
+    // If timer has already finished, do not start; must press RESET
+    if (remainingMs <= 0) return;
+
     // If starting a fresh 2-minute timer, reset reps to 0
     if (remainingMs === 120000) {
       setReps(0);
@@ -69,8 +72,9 @@ export const HrpClickerModal: React.FC<HrpClickerModalProps> = ({
         timerRef.current = requestAnimationFrame(tick);
       } else {
         setIsRunning(false);
+        setRemainingMs(0);
         endTimeRef.current = null;
-        triggerHaptic(200); // 200ms end vibration
+        triggerHaptic([400, 150, 400, 150, 800]); // Intense end vibration pattern
       }
     };
     timerRef.current = requestAnimationFrame(tick);
@@ -90,6 +94,12 @@ export const HrpClickerModal: React.FC<HrpClickerModalProps> = ({
 
   // Clicker Actions
   const handleTapCount = () => {
+    // Once the timer has finished (0:00), tapping the screen does nothing.
+    // Only the RESET button can restart the timer/test.
+    if (remainingMs <= 0) {
+      return;
+    }
+
     // If timer is not running yet, the first touch resets reps to 0 and starts the 2-minute timer
     if (!isRunning) {
       startTimer();
@@ -120,14 +130,13 @@ export const HrpClickerModal: React.FC<HrpClickerModalProps> = ({
   const secs = totalSec % 60;
   const hundredths = Math.floor((remainingMs % 1000) / 10).toString().padStart(2, '0');
 
-  const passingStandard = getOfficialPassingStandard('HRP', trainee.ageGroup);
   const currentOfficialScore = calculateOfficialAftScore('HRP', reps, trainee.ageGroup);
   const isPassed = currentOfficialScore >= 60;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-950 text-white select-none animate-fadeIn">
       {/* Top Section: Trainee Info + Passing Status + Timer Display + Controls */}
-      <header className="shrink-0 bg-blue-950/90 border-b border-blue-900/60 px-4 py-3 shadow-lg">
+      <header className="shrink-0 bg-blue-950/90 border-b border-blue-900/60 px-4 py-2.5 shadow-lg">
         {/* Row 1: Trainee Name, Vest Number, Close Button */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -171,34 +180,37 @@ export const HrpClickerModal: React.FC<HrpClickerModalProps> = ({
           </div>
         </div>
 
-        {/* Row 2: Standard Badge + 2-Min Timer with Start/Reset */}
-        <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-blue-900/40">
-          {/* Passing Standard Reference */}
-          <div className="flex items-center gap-2 text-xs font-bold">
-            <span className="text-blue-300">PASS (60 pts):</span>
-            <span className="rounded-md bg-amber-400/20 px-2 py-0.5 text-amber-300 border border-amber-400/40 font-black">
-              {passingStandard} reps
-            </span>
-            <span className={`text-[11px] font-black px-1.5 py-0.5 rounded ${isPassed ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'text-blue-400'}`}>
+        {/* Row 2: Reps Score + 2-Min Timer with Start/Reset */}
+        <div className="flex items-center justify-between gap-2 mt-1.5 pt-1.5 border-t border-blue-900/40 min-w-0">
+          {/* Current Reps & Official Score Badge */}
+          <div className="flex items-center min-w-0">
+            <span
+              className={`h-[34px] px-3 rounded-xl text-xs font-black border whitespace-nowrap flex items-center justify-center shrink-0 ${
+                isPassed
+                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                  : 'bg-blue-900/40 text-blue-300 border-blue-800'
+              }`}
+            >
               {reps} reps ({currentOfficialScore} pts)
             </span>
           </div>
 
           {/* 2-Min Stopwatch Display & Controls (No Pause) */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {!isRunning && remainingMs === 120000 ? (
               <button
                 type="button"
                 onClick={startTimer}
-                className="h-7 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-blue-950 px-2.5 text-[10px] font-bold shadow transition-all active:scale-95"
+                className="h-[34px] rounded-xl bg-emerald-500 hover:bg-emerald-400 text-blue-950 px-3 text-xs font-black shadow transition-all active:scale-95 whitespace-nowrap flex items-center gap-1.5"
               >
-                🚀 START
+                <span>🚀</span>
+                <span>START</span>
               </button>
             ) : (
               <button
                 type="button"
                 onClick={resetTimer}
-                className="h-7 rounded-lg bg-red-600 hover:bg-red-500 text-white px-2 text-[10px] font-black shadow transition-all active:scale-95 flex items-center justify-center gap-1 border border-red-400/40"
+                className="h-[34px] rounded-xl bg-red-600 hover:bg-red-500 text-white px-3 text-xs font-black shadow transition-all active:scale-95 flex items-center justify-center gap-1.5 border border-red-400/40 whitespace-nowrap"
                 title="Reset Timer"
               >
                 <span>🔄</span>
@@ -207,20 +219,20 @@ export const HrpClickerModal: React.FC<HrpClickerModalProps> = ({
             )}
 
             {/* Timer Output Display */}
-            <div className="relative flex items-center justify-center h-7 rounded-lg">
+            <div className="relative flex items-center justify-center h-[34px] rounded-xl">
               {isRunning && (
                 <div
-                  className={`absolute -inset-[1px] rounded-lg pointer-events-none transition-all ${
+                  className={`absolute -inset-[1px] rounded-xl pointer-events-none transition-all ${
                     remainingMs <= 10000
                       ? 'border-2 border-red-500 ring-2 ring-red-500/60 animate-ping'
                       : 'border-2 border-emerald-400 ring-2 ring-emerald-400/60 animate-pulse'
                   }`}
                 />
               )}
-              <div className="flex items-center justify-center bg-blue-950 px-2 h-7 rounded-lg border border-blue-800 shadow-inner z-10">
+              <div className="flex items-center justify-center bg-blue-950 px-2.5 h-[34px] rounded-xl border border-blue-800 shadow-inner z-10">
                 <span className="font-mono text-sm font-black text-amber-300 tracking-wider">
                   {mins}:{secs.toString().padStart(2, '0')}
-                  <span className="text-[9px] text-blue-200 font-normal">.{hundredths}</span>
+                  <span className="text-[10px] text-blue-200 font-normal">.{hundredths}</span>
                 </span>
               </div>
             </div>
@@ -231,12 +243,18 @@ export const HrpClickerModal: React.FC<HrpClickerModalProps> = ({
       {/* Main Touch Pad (Full Screen Clicker Area) */}
       <main
         onClick={handleTapCount}
-        className="flex-1 w-full flex flex-col items-center justify-center relative cursor-pointer active:bg-blue-900/30 transition-colors touch-manipulation"
+        className={`flex-1 w-full flex flex-col items-center justify-center relative transition-colors touch-manipulation ${
+          remainingMs <= 0 ? 'cursor-not-allowed opacity-90' : 'cursor-pointer active:bg-blue-900/30'
+        }`}
       >
         {/* Subtle Watermark/Helper Text */}
-        <div className="text-center opacity-60 mb-2 pointer-events-none">
-          <span className="text-xs uppercase tracking-widest text-blue-300 font-bold">
-            {isRunning ? 'TAP ANYWHERE TO COUNT' : 'TAP ANYWHERE TO START TIMER'}
+        <div className="text-center opacity-75 mb-2 pointer-events-none px-4">
+          <span className={`text-xs uppercase tracking-widest font-black ${remainingMs <= 0 ? 'text-amber-400' : 'text-blue-300'}`}>
+            {remainingMs <= 0
+              ? 'TIME EXPIRED · PRESS RESET TO START OVER'
+              : isRunning
+                ? 'TAP ANYWHERE TO COUNT'
+                : 'TAP ANYWHERE TO START TIMER'}
           </span>
         </div>
 
