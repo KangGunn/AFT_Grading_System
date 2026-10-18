@@ -9,7 +9,7 @@ import { DualLaneModal } from '../modals/DualLaneModal';
 import { HrpClickerModal } from '../modals/HrpClickerModal';
 import { DualLaneTraineeCard } from './DualLaneTraineeCard';
 import { RETEST_LANE_NUM } from '../../utils/aft/retestHelpers';
-import { AddRetestSoldierModal } from '../modals/AddRetestSoldierModal';
+import { ManageRetestSoldiersModal } from '../modals/ManageRetestSoldiersModal';
 
 interface GradingViewProps {
   selectedLane: number;
@@ -48,7 +48,9 @@ interface GradingViewProps {
   activeCountByLane?: Record<number, number>;
   dualLanes?: Record<number, { primaryLane: number; active: boolean }>;
   onSelectSecondaryLane?: (laneNum: number | null) => void;
+  retestCustomTrainees?: TraineeRecord[];
   onAddRetestSoldier?: (soldier: { name: string; age: number; vestNumber?: string; rosterNumber?: string }) => void;
+  onEditRetestSoldier?: (traineeId: string, soldier: { name: string; age: number; vestNumber?: string; rosterNumber?: string }) => void;
   onRemoveRetestSoldier?: (traineeId: string) => void;
 }
 
@@ -84,11 +86,14 @@ export const GradingView: React.FC<GradingViewProps> = ({
   activeCountByLane,
   dualLanes,
   onSelectSecondaryLane,
+  retestCustomTrainees,
   onAddRetestSoldier,
+  onEditRetestSoldier,
   onRemoveRetestSoldier
 }) => {
   const [isDualLaneModalOpen, setIsDualLaneModalOpen] = useState<boolean>(false);
-  const [isAddSoldierModalOpen, setIsAddSoldierModalOpen] = useState<boolean>(false);
+  const [isManageSoldiersModalOpen, setIsManageSoldiersModalOpen] = useState<boolean>(false);
+  const [editingRetestSoldier, setEditingRetestSoldier] = useState<TraineeRecord | null>(null);
   const [activeHrpTrainee, setActiveHrpTrainee] = useState<TraineeRecord | null>(null);
 
   const [currentEventIndex, setCurrentEventIndex] = useState<number>(() => {
@@ -391,24 +396,32 @@ export const GradingView: React.FC<GradingViewProps> = ({
             ) : (
               /* Regular Full-Width Trainee List */
               <section className="space-y-2.5">
-                {selectedLane === RETEST_LANE_NUM && onAddRetestSoldier && (
-                  <div className="flex items-center justify-between px-1 py-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-black text-gray-800 dark:text-gray-200">
+                {selectedLane === RETEST_LANE_NUM && (
+                  <div className="flex items-center justify-between gap-2 px-1 py-1 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 truncate">
+                      <span className="text-xs font-black text-gray-800 dark:text-gray-200 whitespace-nowrap">
                         Re-Test Lane ({currentTrainees.length})
                       </span>
-                      <span className="text-[10px] font-bold text-gray-400">
-                        Failures & Additional Soldiers
+                      <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap hidden sm:inline truncate">
+                        · Failures & Ext Soldiers
                       </span>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setIsAddSoldierModalOpen(true)}
-                      className="flex items-center gap-1 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 px-2.5 py-1 text-xs font-black text-white shadow-xs"
-                      title="Add non-listed soldier to Re-Test lane"
+                      onClick={() => {
+                        setEditingRetestSoldier(null);
+                        setIsManageSoldiersModalOpen(true);
+                      }}
+                      className="shrink-0 whitespace-nowrap flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 px-2.5 py-1 text-xs font-black text-white shadow-xs"
+                      title="Manage External Soldiers (Add, Edit, Delete)"
                     >
-                      <span>+</span>
-                      <span>ADD SOLDIER</span>
+                      <span className="text-xs">👥</span>
+                      <span>EXT SOLDIERS</span>
+                      {(retestCustomTrainees?.length ?? 0) > 0 && (
+                        <span className="rounded-full bg-blue-900/90 px-1.5 py-0.2 text-[10px] font-black text-amber-300">
+                          {retestCustomTrainees!.length}
+                        </span>
+                      )}
                     </button>
                   </div>
                 )}
@@ -418,16 +431,20 @@ export const GradingView: React.FC<GradingViewProps> = ({
                     <span className="text-3xl">🎖️</span>
                     <div className="text-sm font-bold text-gray-500 dark:text-gray-400">
                       {selectedLane === RETEST_LANE_NUM
-                        ? 'No failed trainees or additional soldiers in Re-Test lane.'
+                        ? 'No failed trainees or external soldiers in Re-Test lane.'
                         : 'No trainees in this lane.'}
                     </div>
-                    {selectedLane === RETEST_LANE_NUM && onAddRetestSoldier && (
+                    {selectedLane === RETEST_LANE_NUM && (
                       <button
                         type="button"
-                        onClick={() => setIsAddSoldierModalOpen(true)}
-                        className="rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 px-4 py-2 text-xs font-black text-white shadow-md"
+                        onClick={() => {
+                          setEditingRetestSoldier(null);
+                          setIsManageSoldiersModalOpen(true);
+                        }}
+                        className="rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 px-4 py-2 text-xs font-black text-white shadow-md whitespace-nowrap flex items-center gap-1.5"
                       >
-                        + Add Soldier
+                        <span>👥</span>
+                        <span>Manage EXT Soldiers</span>
                       </button>
                     )}
                   </div>
@@ -471,6 +488,10 @@ export const GradingView: React.FC<GradingViewProps> = ({
                         onTogglePlkSelect={onTogglePlkSelect}
                         onTimerAction={onTimerAction}
                         onOpenHrpClicker={setActiveHrpTrainee}
+                        onEditCustomTrainee={(soldier) => {
+                          setEditingRetestSoldier(soldier);
+                          setIsManageSoldiersModalOpen(true);
+                        }}
                         onRemoveCustomTrainee={onRemoveRetestSoldier}
                       />
                     );
@@ -509,19 +530,27 @@ export const GradingView: React.FC<GradingViewProps> = ({
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      {selectedLane === RETEST_LANE_NUM && onAddRetestSoldier && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      {selectedLane === RETEST_LANE_NUM && (
                         <button
                           type="button"
-                          onClick={() => setIsAddSoldierModalOpen(true)}
-                          className={`shrink-0 flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-black shadow-sm transition-all active:scale-95 border ${isDarkText
+                          onClick={() => {
+                            setEditingRetestSoldier(null);
+                            setIsManageSoldiersModalOpen(true);
+                          }}
+                          className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-black shadow-sm transition-all active:scale-95 border ${isDarkText
                               ? 'bg-black/10 hover:bg-black/20 text-black border-black/20'
                               : 'bg-white/20 hover:bg-white/30 text-white border-white/30'
                             }`}
-                          title="Add Soldier"
+                          title="Manage External Soldiers (Add, Edit, Delete)"
                         >
-                          <span>🎖️</span>
-                          <span>+ Add Soldier</span>
+                          <span className="text-xs">👥</span>
+                          <span>EXT SOLDIERS</span>
+                          {(retestCustomTrainees?.length ?? 0) > 0 && (
+                            <span className="rounded-full bg-black/20 dark:bg-white/20 px-1.5 py-0.2 text-[10px] font-black">
+                              {retestCustomTrainees!.length}
+                            </span>
+                          )}
                         </button>
                       )}
 
@@ -592,7 +621,9 @@ export const GradingView: React.FC<GradingViewProps> = ({
                   <div key={trainee.id} className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                     <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-gray-100 dark:border-slate-800">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-black text-black dark:text-white">RN #{trainee.rosterNumber}</span>
+                        {trainee.rosterNumber ? (
+                          <span className="text-xs font-black text-black dark:text-white">RN #{trainee.rosterNumber}</span>
+                        ) : null}
                         <span className="text-xs font-black text-gray-900 dark:text-white">{trainee.name}</span>
                         {onRemoveRetestSoldier && trainee.id.startsWith('custom-retest-') && (
                           <button
@@ -714,13 +745,20 @@ export const GradingView: React.FC<GradingViewProps> = ({
         />
       )}
 
-      {/* Add Soldier Modal (Re-Test Lane only) */}
-      {onAddRetestSoldier && (
-        <AddRetestSoldierModal
-          isOpen={isAddSoldierModalOpen}
-          onClose={() => setIsAddSoldierModalOpen(false)}
+      {/* Manage EXT Soldiers Modal (Re-Test Lane only) */}
+      {onAddRetestSoldier && onEditRetestSoldier && onRemoveRetestSoldier && (
+        <ManageRetestSoldiersModal
+          isOpen={isManageSoldiersModalOpen}
+          onClose={() => {
+            setIsManageSoldiersModalOpen(false);
+            setEditingRetestSoldier(null);
+          }}
+          customSoldiers={retestCustomTrainees || []}
           defaultVestNumber={String(currentTrainees.length + 1)}
+          initialEditingSoldier={editingRetestSoldier}
           onAdd={onAddRetestSoldier}
+          onEdit={onEditRetestSoldier}
+          onDelete={onRemoveRetestSoldier}
         />
       )}
     </>

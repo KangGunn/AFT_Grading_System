@@ -81,6 +81,7 @@ export const VEST_COLORS = [
 export const STORAGE_KEY_TRAINEES = 'aft_trainees_lane_v2';
 export const STORAGE_KEY_LANE_CONFIG = 'aft_lane_configs_v2';
 export const STORAGE_KEY_ACTIVE_COUNTS = 'aft_lane_active_counts_v2';
+export const STORAGE_KEY_RETEST_CUSTOM_TRAINEES = 'aft_retest_custom_trainees';
 
 export const createDefaultLaneTrainees = (): Record<number, TraineeRecord[]> => {
   const result: Record<number, TraineeRecord[]> = {};

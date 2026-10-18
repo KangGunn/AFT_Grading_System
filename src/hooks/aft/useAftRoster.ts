@@ -6,10 +6,11 @@ import {
   STORAGE_KEY_TRAINEES,
   STORAGE_KEY_LANE_CONFIG,
   STORAGE_KEY_ACTIVE_COUNTS,
+  STORAGE_KEY_RETEST_CUSTOM_TRAINEES,
   createDefaultLaneTrainees,
   createDefaultLaneConfigs
 } from '../../utils/aft/constants';
-import { normalizeLaneTrainees, normalizeActiveCount } from '../../utils/aft/normalizers';
+import { normalizeLaneTrainees, normalizeActiveCount, normalizeCustomTrainees } from '../../utils/aft/normalizers';
 import { getAgeGroupFromAge } from '../../utils/aft/timeFormatter';
 
 export function useAftRoster() {
@@ -83,6 +84,29 @@ export function useAftRoster() {
     }
   }, [activeCountByLane]);
 
+  // Custom Re-Test Trainees (EXT Soldiers) State & LocalStorage
+  const [retestCustomTrainees, setRetestCustomTrainees] = useState<TraineeRecord[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = window.localStorage.getItem(STORAGE_KEY_RETEST_CUSTOM_TRAINEES);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Failed to load custom retest trainees:', e);
+    }
+    return [];
+  });
+
+  const retestCustomTraineesRef = useRef(retestCustomTrainees);
+  useEffect(() => {
+    retestCustomTraineesRef.current = retestCustomTrainees;
+  }, [retestCustomTrainees]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY_RETEST_CUSTOM_TRAINEES, JSON.stringify(retestCustomTrainees));
+    }
+  }, [retestCustomTrainees]);
+
   // Connection Health Listener
   useEffect(() => {
     try {
@@ -149,6 +173,47 @@ export function useAftRoster() {
     );
 
     return () => unsubscribe();
+  }, []);
+
+  // Real-time listener & Immediate Fetch for Custom Re-Test Trainees (EXT Soldiers) from Firebase RTDB
+  useEffect(() => {
+    const customRef = dbRef(db, 'aft_sessions/retest_custom_trainees');
+
+    // 1. Immediate One-Time Fetch on Mount
+    dbGet(customRef)
+      .then((snapshot) => {
+        if (snapshot.exists()) {
+          const normalized = normalizeCustomTrainees(snapshot.val());
+          setRetestCustomTrainees(normalized);
+          retestCustomTraineesRef.current = normalized;
+        } else if (retestCustomTraineesRef.current.length > 0) {
+          // If Firebase is empty but we have local soldiers, migrate them to Firebase
+          dbSet(customRef, retestCustomTraineesRef.current).catch(console.warn);
+        }
+      })
+      .catch((err) => {
+        console.warn('Initial Firebase custom retest get failed:', err);
+      });
+
+    // 2. Real-time Live Subscription
+    const unsub = onValue(
+      customRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const normalized = normalizeCustomTrainees(snapshot.val());
+          setRetestCustomTrainees(normalized);
+          retestCustomTraineesRef.current = normalized;
+        } else {
+          setRetestCustomTrainees([]);
+          retestCustomTraineesRef.current = [];
+        }
+      },
+      (err) => {
+        console.warn('Firebase custom retest listener error:', err);
+      }
+    );
+
+    return () => unsub();
   }, []);
 
   // Dual Lane Simultaneous Grading State & Firebase RTDB Listener
@@ -361,11 +426,129 @@ export function useAftRoster() {
     }
   };
 
+  const addCustomRetestSoldier = async (soldier: {
+    name: string;
+    age: number;
+    vestNumber?: string;
+    rosterNumber?: string;
+  }) => {
+    const nextRoster = soldier.rosterNumber?.trim() || '';
+    const nextVest = soldier.vestNumber?.trim() || '';
+    const newTrainee: TraineeRecord = {
+      id: `custom-retest-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      name: soldier.name.trim(),
+      age: soldier.age,
+      ageGroup: getAgeGroupFromAge(soldier.age),
+      vestNumber: nextVest,
+      rosterNumber: nextRoster,
+      scores: {
+        MDL: '',
+        MDL2: '',
+        HRP: '',
+        SDC: '',
+        PLK: '',
+        '2MR': ''
+      }
+    };
+
+    const nextList = [...retestCustomTraineesRef.current, newTrainee];
+    retestCustomTraineesRef.current = nextList;
+    setRetestCustomTrainees(nextList);
+
+    try {
+      const customRef = dbRef(db, 'aft_sessions/retest_custom_trainees');
+      await dbSet(customRef, nextList);
+    } catch (e) {
+      console.warn('Failed to sync added custom retest trainee to Firebase:', e);
+    }
+  };
+
+  const editCustomRetestSoldier = async (
+    traineeId: string,
+    soldier: {
+      name: string;
+      age: number;
+      vestNumber?: string;
+      rosterNumber?: string;
+    }
+  ) => {
+    const nextList = retestCustomTraineesRef.current.map((t) => {
+      if (t.id === traineeId) {
+        return {
+          ...t,
+          name: soldier.name.trim(),
+          age: soldier.age,
+          ageGroup: getAgeGroupFromAge(soldier.age),
+          vestNumber: soldier.vestNumber !== undefined ? soldier.vestNumber.trim() : t.vestNumber,
+          rosterNumber: soldier.rosterNumber !== undefined ? soldier.rosterNumber.trim() : t.rosterNumber
+        };
+      }
+      return t;
+    });
+
+    retestCustomTraineesRef.current = nextList;
+    setRetestCustomTrainees(nextList);
+
+    try {
+      const customRef = dbRef(db, 'aft_sessions/retest_custom_trainees');
+      await dbSet(customRef, nextList);
+    } catch (e) {
+      console.warn('Failed to sync edited custom retest trainee to Firebase:', e);
+    }
+  };
+
+  const removeCustomRetestSoldier = async (traineeId: string) => {
+    const nextList = retestCustomTraineesRef.current.filter((t) => t.id !== traineeId);
+    retestCustomTraineesRef.current = nextList;
+    setRetestCustomTrainees(nextList);
+
+    try {
+      const customRef = dbRef(db, 'aft_sessions/retest_custom_trainees');
+      await dbSet(customRef, nextList);
+    } catch (e) {
+      console.warn('Failed to sync deleted custom retest trainee to Firebase:', e);
+    }
+  };
+
+  const updateCustomRetestScore = async (
+    traineeId: string,
+    eventCode: EventCode,
+    value: string
+  ) => {
+    const nextList = retestCustomTraineesRef.current.map((t) => {
+      if (t.id === traineeId) {
+        return {
+          ...t,
+          scores: {
+            ...t.scores,
+            [eventCode]: value
+          }
+        };
+      }
+      return t;
+    });
+
+    retestCustomTraineesRef.current = nextList;
+    setRetestCustomTrainees(nextList);
+
+    try {
+      const customRef = dbRef(db, 'aft_sessions/retest_custom_trainees');
+      await dbSet(customRef, nextList);
+    } catch (e) {
+      console.warn('Failed to sync custom retest score to Firebase:', e);
+    }
+  };
+
   return {
     laneTrainees,
     laneConfigs,
     activeCountByLane,
     isFirebaseConnected,
+    retestCustomTrainees,
+    addCustomRetestSoldier,
+    editCustomRetestSoldier,
+    removeCustomRetestSoldier,
+    updateCustomRetestScore,
     dualLanes,
     setDualLane,
     clearDualLane,

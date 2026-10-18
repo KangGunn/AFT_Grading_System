@@ -27,6 +27,7 @@ interface TraineeCardProps {
   onTogglePlkSelect: (traineeId: string) => void;
   onTimerAction: (traineeId: string, eventCode: 'SDC' | 'PLK' | '2MR') => void;
   onOpenHrpClicker?: (trainee: TraineeRecord) => void;
+  onEditCustomTrainee?: (trainee: TraineeRecord) => void;
   onRemoveCustomTrainee?: (traineeId: string) => void;
 }
 
@@ -53,6 +54,7 @@ export const TraineeCard: React.FC<TraineeCardProps> = ({
   onTogglePlkSelect,
   onTimerAction,
   onOpenHrpClicker,
+  onEditCustomTrainee,
   onRemoveCustomTrainee
 }) => {
   const displayVal = isSdcRunning
@@ -112,25 +114,46 @@ export const TraineeCard: React.FC<TraineeCardProps> = ({
           {/* Top Row: RN & Age */}
           <div className="flex items-center justify-between gap-1 min-w-0">
             <div className="flex items-center gap-1.5 min-w-0 truncate">
-              <span className="text-[10px] font-black text-blue-700 dark:text-blue-300 shrink-0">
-                #{trainee.rosterNumber}
-              </span>
+              {trainee.rosterNumber && (
+                <span className="text-[10px] font-black text-blue-700 dark:text-blue-300 shrink-0">
+                  #{trainee.rosterNumber}
+                </span>
+              )}
               <span className="text-[10px] font-bold text-gray-400 shrink-0">
                 Age: {trainee.age}
               </span>
             </div>
-            {onRemoveCustomTrainee && trainee.id.startsWith('custom-retest-') && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemoveCustomTrainee(trainee.id);
-                }}
-                className="text-[10px] font-black text-red-500 hover:text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 px-1 rounded leading-none transition-colors"
-                title="Remove soldier"
-              >
-                ✕
-              </button>
+            {trainee.id.startsWith('custom-retest-') && (
+              <div className="flex items-center gap-1 shrink-0">
+                {onEditCustomTrainee && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditCustomTrainee(trainee);
+                    }}
+                    className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 px-1 rounded leading-none transition-colors"
+                    title="Edit soldier details"
+                  >
+                    ✏️
+                  </button>
+                )}
+                {onRemoveCustomTrainee && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Delete external soldier ${trainee.name} (#${trainee.rosterNumber})?`)) {
+                        onRemoveCustomTrainee(trainee.id);
+                      }
+                    }}
+                    className="text-[10px] font-black text-red-500 hover:text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 px-1 rounded leading-none transition-colors"
+                    title="Remove soldier"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             )}
           </div>
           {/* Bottom Row: Name (Given full width without wrapping/truncation constraint from other items) */}

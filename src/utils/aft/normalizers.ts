@@ -67,3 +67,14 @@ export const normalizeActiveCount = (raw: any): Record<number, number> => {
 
   return result;
 };
+
+export const normalizeCustomTrainees = (raw: any): TraineeRecord[] => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw.filter(Boolean);
+  }
+  if (typeof raw === 'object') {
+    return Object.values(raw).filter(Boolean) as TraineeRecord[];
+  }
+  return [];
+};

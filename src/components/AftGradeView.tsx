@@ -57,6 +57,11 @@ export default function AftGradeView({ }: Props) {
     laneConfigs,
     activeCountByLane,
     isFirebaseConnected,
+    retestCustomTrainees,
+    addCustomRetestSoldier,
+    editCustomRetestSoldier,
+    removeCustomRetestSoldier,
+    updateCustomRetestScore,
     dualLanes,
     setDualLane,
     clearDualLane,
@@ -135,29 +140,6 @@ export default function AftGradeView({ }: Props) {
   // Temporary vest numbers specifically for Re-Test (in-memory, does not affect original lane trainee vest numbers)
   const [retestTemporaryVestNumbers, setRetestTemporaryVestNumbers] = useState<Record<string, string>>({});
 
-  // Additional soldiers specifically taking the test in Re-Test lane (excluded from Total Results)
-  const [retestCustomTrainees, setRetestCustomTrainees] = useState<TraineeRecord[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = window.localStorage.getItem('aft_retest_custom_trainees');
-        if (saved) return JSON.parse(saved);
-      } catch (e) {
-        console.error('Failed to load custom retest trainees:', e);
-      }
-    }
-    return [];
-  });
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem('aft_retest_custom_trainees', JSON.stringify(retestCustomTrainees));
-      } catch (e) {
-        console.error('Failed to save custom retest trainees:', e);
-      }
-    }
-  }, [retestCustomTrainees]);
-
   // Re-Test trainees formatted for GradingView (with scores bound to retestScores and isolated temporary vest numbers)
   const retestTraineeRecords: TraineeRecord[] = useMemo(() => {
     return failedTrainees.map(ft => ({
@@ -203,50 +185,32 @@ export default function AftGradeView({ }: Props) {
     ? allRetestTrainees
     : (laneTrainees[selectedLane] || []).slice(0, currentActiveCount);
 
-  const updateCustomRetestScore = (traineeId: string, eventCode: EventCode, val: string) => {
-    setRetestCustomTrainees(prev => prev.map(t => {
-      if (t.id === traineeId) {
-        return {
-          ...t,
-          scores: {
-            ...t.scores,
-            [eventCode]: val
-          }
-        };
-      }
-      return t;
-    }));
-  };
-
   const handleAddRetestSoldier = (soldier: {
     name: string;
     age: number;
     vestNumber?: string;
     rosterNumber?: string;
   }) => {
-    const nextRoster = soldier.rosterNumber?.trim() || `EXT-${retestCustomTrainees.length + 1}`;
-    const nextVest = soldier.vestNumber?.trim() || String(currentLaneTrainees.length + 1);
-    const newTrainee: TraineeRecord = {
-      id: `custom-retest-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      name: soldier.name.trim(),
-      age: soldier.age,
-      ageGroup: getAgeGroupFromAge(soldier.age),
-      vestNumber: nextVest,
-      rosterNumber: nextRoster,
-      scores: {
-        MDL: '',
-        MDL2: '',
-        HRP: '',
-        SDC: '',
-        PLK: '',
-        '2MR': ''
-      }
-    };
-    setRetestCustomTrainees(prev => [...prev, newTrainee]);
+    addCustomRetestSoldier(soldier);
+  };
+
+  const handleEditRetestSoldier = (traineeId: string, soldier: {
+    name: string;
+    age: number;
+    vestNumber?: string;
+    rosterNumber?: string;
+  }) => {
+    editCustomRetestSoldier(traineeId, soldier);
+    if (soldier.vestNumber) {
+      setRetestTemporaryVestNumbers(prev => ({
+        ...prev,
+        [traineeId]: soldier.vestNumber!.trim()
+      }));
+    }
   };
 
   const handleRemoveRetestSoldier = (traineeId: string) => {
-    setRetestCustomTrainees(prev => prev.filter(t => t.id !== traineeId));
+    removeCustomRetestSoldier(traineeId);
     setRetestTemporaryVestNumbers(prev => {
       const next = { ...prev };
       delete next[traineeId];
@@ -295,7 +259,15 @@ export default function AftGradeView({ }: Props) {
 
       const isCustom = retestCustomTrainees.some(t => t.id === traineeId);
       if (isCustom) {
-        setRetestCustomTrainees(prev => prev.map(t => (t.id === traineeId ? { ...t, ...updates } : t)));
+        const existing = retestCustomTrainees.find(t => t.id === traineeId);
+        if (existing) {
+          editCustomRetestSoldier(traineeId, {
+            name: updates.name !== undefined ? updates.name : existing.name,
+            age: updates.age !== undefined ? updates.age : existing.age,
+            vestNumber: updates.vestNumber !== undefined ? updates.vestNumber : existing.vestNumber,
+            rosterNumber: updates.rosterNumber !== undefined ? updates.rosterNumber : existing.rosterNumber
+          });
+        }
         return;
       }
 
@@ -503,7 +475,9 @@ export default function AftGradeView({ }: Props) {
             activeCountByLane={activeCountByLane}
             dualLanes={selectedLane === RETEST_LANE_NUM ? undefined : dualLanes}
             onSelectSecondaryLane={selectedLane === RETEST_LANE_NUM ? undefined : handleSelectSecondaryLane}
+            retestCustomTrainees={selectedLane === RETEST_LANE_NUM ? retestCustomTrainees : undefined}
             onAddRetestSoldier={selectedLane === RETEST_LANE_NUM ? handleAddRetestSoldier : undefined}
+            onEditRetestSoldier={selectedLane === RETEST_LANE_NUM ? handleEditRetestSoldier : undefined}
             onRemoveRetestSoldier={selectedLane === RETEST_LANE_NUM ? handleRemoveRetestSoldier : undefined}
           />
         )}
