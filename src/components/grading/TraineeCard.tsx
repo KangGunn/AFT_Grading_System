@@ -26,6 +26,7 @@ interface TraineeCardProps {
   onUpdateTrainee: (traineeId: string, updates: Partial<TraineeRecord>) => void;
   onTogglePlkSelect: (traineeId: string) => void;
   onTimerAction: (traineeId: string, eventCode: 'SDC' | 'PLK' | '2MR') => void;
+  onOpenHrpClicker?: (trainee: TraineeRecord) => void;
 }
 
 export const TraineeCard: React.FC<TraineeCardProps> = ({
@@ -49,7 +50,8 @@ export const TraineeCard: React.FC<TraineeCardProps> = ({
   onScoreChange,
   onUpdateTrainee,
   onTogglePlkSelect,
-  onTimerAction
+  onTimerAction,
+  onOpenHrpClicker
 }) => {
   const displayVal = isSdcRunning
     ? formatSecondsToTime(Math.floor(sdcElapsedMs / 1000))
@@ -167,22 +169,36 @@ export const TraineeCard: React.FC<TraineeCardProps> = ({
             </div>
           </div>
         ) : isHRP ? (
-          /* HRP: Single Reps Input stretched to align identically */
-          <div className="relative w-full flex justify-end">
-            <input
-              type="number"
-              step={currentEvent.step}
-              placeholder={getOfficialPassingStandard(currentEvent.code, trainee.ageGroup)}
-              value={rawValStr}
-              onChange={(e) => onScoreChange(trainee.id, currentEvent.code, e.target.value)}
-              onWheel={(e) => e.currentTarget.blur()}
-              onKeyDown={(e) => {
-                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                  e.preventDefault();
-                }
+          /* HRP: Reps Input (w-24) + Clicker Button (w-20) = 192px matching right boundary */
+          <div className="flex items-center justify-end gap-1.5 w-full">
+            <div className="relative w-24">
+              <input
+                type="number"
+                step={currentEvent.step}
+                placeholder={getOfficialPassingStandard(currentEvent.code, trainee.ageGroup)}
+                value={rawValStr}
+                onChange={(e) => onScoreChange(trainee.id, currentEvent.code, e.target.value)}
+                onWheel={(e) => e.currentTarget.blur()}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                    e.preventDefault();
+                  }
+                }}
+                className="w-full h-8 rounded-xl border border-gray-300 bg-gray-50 px-2 text-xs font-black text-center text-gray-900 outline-none focus:border-blue-600 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenHrpClicker) onOpenHrpClicker(trainee);
               }}
-              className="w-24 h-8 rounded-xl border border-gray-300 bg-gray-50 px-2 text-xs font-black text-center text-gray-900 outline-none focus:border-blue-600 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-            />
+              className="h-8 w-20 shrink-0 flex items-center justify-center gap-1 rounded-xl text-[11px] font-black transition-all active:scale-95 bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm border border-emerald-500/80"
+              title="Open Fullscreen Grader"
+            >
+              <span>⏱️</span>
+              <span>GRADE</span>
+            </button>
           </div>
         ) : (
           /* SDC, PLK, 2MR: Input (w-24) + Action Button (w-20 fixed) = 192px matching right boundary */

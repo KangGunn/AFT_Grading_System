@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { TraineeRecord, LaneConfig, EventCode } from '../../types/aft/aft.types';
 import { EVENT_CONFIGS } from '../../utils/aft/constants';
 import { calculateOfficialAftScore, formatSecondsToTime } from '../../data/aftStandards2025';
@@ -6,6 +6,7 @@ import { parseTimeToSeconds } from '../../utils/aft/timeFormatter';
 import { getContrastTextColor } from '../../lib/utils';
 import { TraineeCard } from './TraineeCard';
 import { DualLaneModal } from '../modals/DualLaneModal';
+import { HrpClickerModal } from '../modals/HrpClickerModal';
 import { DualLaneTraineeCard } from './DualLaneTraineeCard';
 import { RETEST_LANE_NUM } from '../../utils/aft/retestHelpers';
 
@@ -82,6 +83,7 @@ export const GradingView: React.FC<GradingViewProps> = ({
   onSelectSecondaryLane
 }) => {
   const [isDualLaneModalOpen, setIsDualLaneModalOpen] = useState<boolean>(false);
+  const [activeHrpTrainee, setActiveHrpTrainee] = useState<TraineeRecord | null>(null);
 
   const [currentEventIndex, setCurrentEventIndex] = useState<number>(() => {
     if (typeof window !== 'undefined') {
@@ -421,6 +423,7 @@ export const GradingView: React.FC<GradingViewProps> = ({
                       onUpdateTrainee={onUpdateTrainee}
                       onTogglePlkSelect={onTogglePlkSelect}
                       onTimerAction={onTimerAction}
+                      onOpenHrpClicker={setActiveHrpTrainee}
                     />
                   );
                 })}
@@ -619,6 +622,19 @@ export const GradingView: React.FC<GradingViewProps> = ({
           laneConfigs={allLaneConfigs}
           activeCountByLane={activeCountByLane}
           onSelectLane={onSelectSecondaryLane}
+        />
+      )}
+
+      {/* HRP Fullscreen Focus Clicker Modal */}
+      {activeHrpTrainee && (
+        <HrpClickerModal
+          isOpen={!!activeHrpTrainee}
+          trainee={activeHrpTrainee}
+          laneConfig={currentLaneConfig}
+          onClose={() => setActiveHrpTrainee(null)}
+          onSaveScore={(traineeId, reps) => {
+            onScoreChange(traineeId, 'HRP', String(reps), selectedLane);
+          }}
         />
       )}
     </>
