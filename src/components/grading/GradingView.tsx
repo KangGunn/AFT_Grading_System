@@ -510,19 +510,19 @@ export const GradingView: React.FC<GradingViewProps> = ({
               const isDarkText = bannerTextColor === '#0F172A';
               return (
                 <section
-                  className="rounded-2xl p-4 shadow-md transition-all border border-black/10"
+                  className="rounded-2xl p-3.5 sm:p-4 shadow-md transition-all border border-black/10"
                   style={{
                     backgroundColor: currentLaneConfig.vestColorCode,
                     color: bannerTextColor
                   }}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <h2 className="text-base font-black" style={{ color: bannerTextColor }}>
+                  <div className="flex items-center justify-between gap-2.5 min-w-0">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-sm sm:text-base font-black whitespace-nowrap truncate" style={{ color: bannerTextColor }}>
                         {selectedLane === 99 ? 'RE-TEST SCORECARD' : `LANE ${selectedLane} SCORECARD`}
                       </h2>
                       <p
-                        className={`text-xs font-bold ${isDarkText ? 'text-black/75' : 'text-white/85'}`}
+                        className={`text-[11px] sm:text-xs font-bold whitespace-nowrap truncate ${isDarkText ? 'text-black/75' : 'text-white/85'}`}
                       >
                         {selectedLane === 99
                           ? 'All Failed Soldiers · 5-Event Results'
@@ -530,46 +530,21 @@ export const GradingView: React.FC<GradingViewProps> = ({
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      {selectedLane === RETEST_LANE_NUM && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingRetestSoldier(null);
-                            setIsManageSoldiersModalOpen(true);
-                          }}
-                          className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-black shadow-sm transition-all active:scale-95 border ${isDarkText
-                              ? 'bg-black/10 hover:bg-black/20 text-black border-black/20'
-                              : 'bg-white/20 hover:bg-white/30 text-white border-white/30'
-                            }`}
-                          title="Manage External Soldiers (Add, Edit, Delete)"
-                        >
-                          <span className="text-xs">👥</span>
-                          <span>EXT SOLDIERS</span>
-                          {(retestCustomTrainees?.length ?? 0) > 0 && (
-                            <span className="rounded-full bg-black/20 dark:bg-white/20 px-1.5 py-0.2 text-[10px] font-black">
-                              {retestCustomTrainees!.length}
-                            </span>
-                          )}
-                        </button>
-                      )}
-
-                      {/* Total Results Button */}
-                      {onOpenAllResults && (
-                        <button
-                          type="button"
-                          onClick={onOpenAllResults}
-                          className={`shrink-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black shadow-sm transition-all active:scale-95 border ${isDarkText
-                              ? 'bg-black/10 hover:bg-black/20 text-black border-black/20'
-                              : 'bg-white/20 hover:bg-white/30 text-white border-white/30'
-                            }`}
-                          title="View Total Results Scorecard"
-                        >
-                          <span>📊</span>
-                          <span>Total Results</span>
-                        </button>
-                      )}
-                    </div>
+                    {/* Total Results Button */}
+                    {onOpenAllResults && (
+                      <button
+                        type="button"
+                        onClick={onOpenAllResults}
+                        className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-2 text-xs font-black shadow-sm transition-all active:scale-95 border ${isDarkText
+                            ? 'bg-black/10 hover:bg-black/20 text-black border-black/20'
+                            : 'bg-white/20 hover:bg-white/30 text-white border-white/30'
+                          }`}
+                        title="View Total Results Scorecard"
+                      >
+                        <span className="text-xs">📊</span>
+                        <span>Total Results</span>
+                      </button>
+                    )}
                   </div>
                 </section>
               );
