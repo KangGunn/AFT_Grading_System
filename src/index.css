@@ -37,15 +37,10 @@ input[type='number'] {
   appearance: textfield;
 }
 
-/* Prevent iOS Safari 16px auto-zoom on focus while preserving visual appearance */
+/* Prevent iOS Safari auto-zoom on input focus while allowing compact filters */
 @media screen and (max-width: 768px) {
-  input, select, textarea {
-    font-size: 16px !important;
-  }
-  /* Keep visual scale compact inside fixed height inputs */
-  .h-8 input,
-  input.h-8 {
-    font-size: 16px !important;
-    transform-origin: center;
+  input:not(.compact-select),
+  textarea {
+    font-size: 16px;
   }
 }

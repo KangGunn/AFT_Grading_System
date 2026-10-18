@@ -37,11 +37,11 @@ export const LaneSelectHeader: React.FC<LaneSelectHeaderProps> = ({
           </button>
           <button
             onClick={onOpenImport}
-            className="w-9 h-9 flex items-center justify-center rounded-lg bg-emerald-600 border border-emerald-500 text-base font-black text-white hover:bg-emerald-500 active:scale-95 shadow transition-all"
-            title="명단 업로드 (엑셀 파일)"
-            aria-label="Import Roster"
+            className="w-9 h-9 flex items-center justify-center rounded-lg bg-emerald-700 border border-emerald-600 text-base font-black text-white hover:bg-emerald-600 active:scale-95 shadow transition-all"
+            title="훈련병 명단 조회 및 엑셀 업로드"
+            aria-label="Trainee Roster Management"
           >
-            <span>📤</span>
+            <span>📋</span>
           </button>
         </div>
       </div>

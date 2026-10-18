@@ -408,11 +408,13 @@ export default function AftGradeView({ }: Props) {
         )}
       </div>
 
-      {/* EXCEL IMPORT MODAL */}
+      {/* EXCEL IMPORT / ROSTER VIEWER MODAL */}
       <ImportModal
         isOpen={showImportModal}
         onClose={() => setShowImportModal(false)}
         onUploadRoster={uploadRoster}
+        laneTrainees={laneTrainees}
+        laneConfigs={laneConfigs}
       />
 
       {/* OFFICIAL 2025 AFT STANDARDS MODAL */}

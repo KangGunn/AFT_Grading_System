@@ -290,102 +290,108 @@ export const AllResultsView: React.FC<AllResultsViewProps> = ({
   const incompletedCount = allResults.filter(r => !r.allCompleted).length;
   const failedCount = allResults.filter(r => r.allCompleted && !r.isPassed).length;
   const retestPassCount = allResults.filter(r => r.isRetestPass).length;
+  // Recycle: initial failed trainees who completed retest attempts but still failed
+  const recycleCount = allResults.filter(r => r.allCompleted && !r.isPassed && r.hasAnyRetest && !r.finalPassed).length;
 
   return (
     <div className="w-full h-full flex flex-col bg-slate-900 text-slate-100 overflow-hidden">
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-blue-950/95 backdrop-blur border-b border-blue-800/60 px-4 py-2.5 flex items-center justify-between shadow-md shrink-0">
-        <div className="flex items-center gap-3">
+      {/* Header - Compact & non-overlapping stats */}
+      <header className="sticky top-0 z-40 w-full bg-blue-900 text-white shadow-md shrink-0">
+        <div className="flex items-center justify-between px-3 py-2.5 gap-2">
+          {/* Left: Back Button */}
           <button
             onClick={onBackToLanes}
-            className="flex h-9 items-center gap-1.5 px-3 rounded-xl bg-blue-900/80 border border-blue-700/80 text-white hover:bg-blue-800 active:scale-95 transition-all shadow text-xs font-black"
+            className="flex items-center gap-1 rounded-lg bg-blue-800 px-2.5 py-1.5 text-xs font-black text-white active:scale-95 hover:bg-blue-700 uppercase shrink-0 shadow"
             title={`돌아가기 (${backButtonLabel})`}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
             </svg>
-            <span className="uppercase">{backButtonLabel}</span>
+            <span>{backButtonLabel}</span>
           </button>
-          <div>
-            <h1 className="text-base font-black tracking-wide text-white flex items-center gap-2">
-              <span>📊</span>
-              <span>TOTAL RESULTS SCORECARD</span>
+
+          {/* Center: Title + Concise 3-item Stats (Total · Fail · Recycle) */}
+          <div className="text-center min-w-0 flex flex-col items-center justify-center">
+            <h1 className="text-sm sm:text-base font-black tracking-wider leading-tight">
+              SCORECARD
             </h1>
-            <p className="text-[11px] font-bold text-blue-200">
-              Total {totalCount} Trainees · Incompleted {incompletedCount} · Failed {failedCount}
-              {retestPassCount > 0 && <span className="text-emerald-300 ml-1 font-black">({retestPassCount} Passed via Re-Test)</span>}
-            </p>
+            <div className="text-[10px] sm:text-[11px] font-bold text-blue-200 uppercase tracking-wide mt-0.5 flex items-center gap-1 whitespace-nowrap">
+              <span>Total <strong className="text-white">{totalCount}</strong></span>
+              <span>·</span>
+              <span>Fail <strong className="text-amber-300">{failedCount}</strong></span>
+              <span>·</span>
+              <span>Recycle <strong className="text-red-400">{recycleCount}</strong></span>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          {/* Re-Test Button */}
-          {onOpenReTest && (
+          {/* Right: Action Buttons */}
+          <div className="flex items-center gap-1.5 justify-end shrink-0">
+            {onOpenReTest && (
+              <button
+                onClick={onOpenReTest}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 active:scale-95 text-white text-[10px] font-black shadow transition-all border border-red-400 shrink-0"
+                title="Fail 인원 재시험 채점 화면으로 이동"
+              >
+                <span>♻️</span>
+                <span>Re-Test</span>
+                {failedCount > 0 && (
+                  <span className="rounded-full bg-slate-950 px-1 text-[9px] text-red-200 font-black border border-red-400">
+                    {failedCount}
+                  </span>
+                )}
+              </button>
+            )}
+
             <button
-              onClick={onOpenReTest}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 active:scale-95 text-white text-xs font-black shadow transition-all border border-red-400"
-              title="Fail 인원 재시험 채점 화면으로 이동"
+              onClick={handleExportExcel}
+              className="flex items-center justify-center px-2 py-1.5 rounded-lg bg-emerald-700 border border-emerald-600 text-[10px] font-black text-white hover:bg-emerald-600 active:scale-95 shadow transition-all shrink-0"
+              title="엑셀 파일로 다운로드"
             >
-              <span>♻️</span>
-              <span>Re-Test</span>
-              {failedCount > 0 && (
-                <span className="rounded-full bg-slate-900 px-1.5 py-0.2 text-[10px] text-red-200 font-black border border-red-400">
-                  {failedCount}
-                </span>
-              )}
+              <span>📥</span>
+              <span className="hidden sm:inline ml-1">Export</span>
             </button>
-          )}
-
-          <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-black shadow transition-all border border-emerald-400/40"
-            title="엑셀 파일로 다운로드"
-          >
-            <span>📥</span>
-            <span className="hidden sm:inline">Export Excel</span>
-          </button>
+          </div>
         </div>
       </header>
 
-      {/* Filter / Search Bar */}
-      <div className="bg-slate-950/80 border-b border-slate-800 px-3 py-2 flex flex-wrap items-center justify-between gap-2 shrink-0">
-        <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-          <span className="text-sm">🔍</span>
+      {/* Filter / Search Bar - Compact single row on mobile to maximize table view space */}
+      <div className="bg-slate-950/90 border-b border-slate-800 px-2.5 py-1.5 flex items-center gap-1.5 shrink-0">
+        <div className="relative flex-1 min-w-0 flex items-center">
+          <span className="absolute left-2.5 pointer-events-none select-none text-xs leading-none flex items-center justify-center">🔍</span>
           <input
             type="text"
-            placeholder="Search RN, Name, Vest..."
+            placeholder="Search..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+            style={{ fontSize: '11px' }}
+            className="w-full bg-slate-900 border border-slate-700/80 rounded-lg pl-8 pr-2 h-7 font-bold text-white placeholder-slate-400 placeholder:text-[11px] leading-normal focus:outline-none focus:border-blue-500"
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Lane Filter */}
-          <select
-            value={filterLane}
-            onChange={(e) => setFilterLane(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-            className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
-          >
-            <option value="all">All Lanes</option>
-            {Array.from({ length: 10 }, (_, i) => i + 1).map(l => (
-              <option key={l} value={l}>Lane {l}</option>
-            ))}
-          </select>
+        <select
+          value={filterLane}
+          onChange={(e) => setFilterLane(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+          style={{ fontSize: '11px' }}
+          className="bg-slate-900 border border-slate-700/80 rounded-lg px-2 h-7 font-bold text-white focus:outline-none focus:border-blue-500 shrink-0"
+        >
+          <option value="all">All Lanes</option>
+          {Array.from({ length: 10 }, (_, i) => i + 1).map(l => (
+            <option key={l} value={l}>L{l}</option>
+          ))}
+        </select>
 
-          {/* Status Filter */}
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-white focus:outline-none focus:border-blue-500"
-          >
-            <option value="all">All Status</option>
-            <option value="pass">Initial PASS</option>
-            <option value="retest_pass">Re-Test PASS</option>
-            <option value="fail">FAIL Only</option>
-            <option value="incomplete">Incomplete</option>
-          </select>
-        </div>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value as any)}
+          style={{ fontSize: '11px' }}
+          className="bg-slate-900 border border-slate-700/80 rounded-lg px-2 h-7 font-bold text-white focus:outline-none focus:border-blue-500 shrink-0"
+        >
+          <option value="all">Status</option>
+          <option value="pass">PASS</option>
+          <option value="retest_pass">Re-Pass</option>
+          <option value="fail">FAIL</option>
+          <option value="incomplete">Incompl</option>
+        </select>
       </div>
 
       {/* Main Table Area with Horizontal & Vertical Scroll */}
@@ -455,15 +461,14 @@ export const AllResultsView: React.FC<AllResultsViewProps> = ({
               filteredResults.map((item, idx) => (
                 <tr
                   key={`${item.lane}-${item.trainee.id}`}
-                  className={`hover:bg-slate-800/60 transition-colors ${
-                    item.isRetestPass
+                  className={`hover:bg-slate-800/60 transition-colors ${item.isRetestPass
                       ? 'bg-emerald-950/20'
                       : item.allCompleted && !item.finalPassed
                         ? 'bg-red-950/15'
                         : idx % 2 === 0
                           ? 'bg-slate-950'
                           : 'bg-slate-900/40'
-                  }`}
+                    }`}
                 >
                   {/* 1. Trainee Info */}
                   <td className="px-2.5 py-2 text-center font-bold">
@@ -472,7 +477,7 @@ export const AllResultsView: React.FC<AllResultsViewProps> = ({
                       return (
                         <span
                           className="inline-flex h-5 w-6 items-center justify-center rounded text-[10px] font-black shadow-xs border border-black/15"
-                          style={{ 
+                          style={{
                             backgroundColor: item.laneConfig.vestColorCode,
                             color: badgeTextColor
                           }}
@@ -514,29 +519,24 @@ export const AllResultsView: React.FC<AllResultsViewProps> = ({
                   </td>
 
                   {/* 3. Initial Converted Points & Result */}
-                  <td className={`px-2 py-2 text-center font-mono font-black ${
-                    !item.mdl1 && !item.mdl2 ? 'text-slate-600' : item.mdlScore < 60 ? 'text-red-400 bg-red-950/30' : 'text-emerald-400'
-                  }`}>
+                  <td className={`px-2 py-2 text-center font-mono font-black ${!item.mdl1 && !item.mdl2 ? 'text-slate-600' : item.mdlScore < 60 ? 'text-red-400 bg-red-950/30' : 'text-emerald-400'
+                    }`}>
                     {item.mdl1 || item.mdl2 ? `${item.mdlScore}p` : '-'}
                   </td>
-                  <td className={`px-2 py-2 text-center font-mono font-black ${
-                    !item.hrp ? 'text-slate-600' : item.hrpScore < 60 ? 'text-red-400 bg-red-950/30' : 'text-emerald-400'
-                  }`}>
+                  <td className={`px-2 py-2 text-center font-mono font-black ${!item.hrp ? 'text-slate-600' : item.hrpScore < 60 ? 'text-red-400 bg-red-950/30' : 'text-emerald-400'
+                    }`}>
                     {item.hrp ? `${item.hrpScore}p` : '-'}
                   </td>
-                  <td className={`px-2 py-2 text-center font-mono font-black ${
-                    !item.sdc ? 'text-slate-600' : item.sdcScore < 60 ? 'text-red-400 bg-red-950/30' : 'text-emerald-400'
-                  }`}>
+                  <td className={`px-2 py-2 text-center font-mono font-black ${!item.sdc ? 'text-slate-600' : item.sdcScore < 60 ? 'text-red-400 bg-red-950/30' : 'text-emerald-400'
+                    }`}>
                     {item.sdc ? `${item.sdcScore}p` : '-'}
                   </td>
-                  <td className={`px-2 py-2 text-center font-mono font-black ${
-                    !item.plk ? 'text-slate-600' : item.plkScore < 60 ? 'text-red-400 bg-red-950/30' : 'text-emerald-400'
-                  }`}>
+                  <td className={`px-2 py-2 text-center font-mono font-black ${!item.plk ? 'text-slate-600' : item.plkScore < 60 ? 'text-red-400 bg-red-950/30' : 'text-emerald-400'
+                    }`}>
                     {item.plk ? `${item.plkScore}p` : '-'}
                   </td>
-                  <td className={`px-2 py-2 text-center font-mono font-black ${
-                    !item.tmr ? 'text-slate-600' : item.tmrScore < 60 ? 'text-red-400 bg-red-950/30' : 'text-emerald-400'
-                  }`}>
+                  <td className={`px-2 py-2 text-center font-mono font-black ${!item.tmr ? 'text-slate-600' : item.tmrScore < 60 ? 'text-red-400 bg-red-950/30' : 'text-emerald-400'
+                    }`}>
                     {item.tmr ? `${item.tmrScore}p` : '-'}
                   </td>
                   <td className="px-2.5 py-2 text-center font-mono font-black text-blue-300 bg-blue-950/40">
