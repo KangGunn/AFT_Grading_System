@@ -27,6 +27,7 @@ interface TraineeCardProps {
   onTogglePlkSelect: (traineeId: string) => void;
   onTimerAction: (traineeId: string, eventCode: 'SDC' | 'PLK' | '2MR') => void;
   onOpenHrpClicker?: (trainee: TraineeRecord) => void;
+  onRemoveCustomTrainee?: (traineeId: string) => void;
 }
 
 export const TraineeCard: React.FC<TraineeCardProps> = ({
@@ -51,7 +52,8 @@ export const TraineeCard: React.FC<TraineeCardProps> = ({
   onUpdateTrainee,
   onTogglePlkSelect,
   onTimerAction,
-  onOpenHrpClicker
+  onOpenHrpClicker,
+  onRemoveCustomTrainee
 }) => {
   const displayVal = isSdcRunning
     ? formatSecondsToTime(Math.floor(sdcElapsedMs / 1000))
@@ -108,13 +110,28 @@ export const TraineeCard: React.FC<TraineeCardProps> = ({
 
         <div className="min-w-0 flex-1 flex flex-col justify-center">
           {/* Top Row: RN & Age */}
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-[10px] font-black text-blue-700 dark:text-blue-300 shrink-0">
-              #{trainee.rosterNumber}
-            </span>
-            <span className="text-[10px] font-bold text-gray-400 shrink-0">
-              Age: {trainee.age}
-            </span>
+          <div className="flex items-center justify-between gap-1 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0 truncate">
+              <span className="text-[10px] font-black text-blue-700 dark:text-blue-300 shrink-0">
+                #{trainee.rosterNumber}
+              </span>
+              <span className="text-[10px] font-bold text-gray-400 shrink-0">
+                Age: {trainee.age}
+              </span>
+            </div>
+            {onRemoveCustomTrainee && trainee.id.startsWith('custom-retest-') && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveCustomTrainee(trainee.id);
+                }}
+                className="text-[10px] font-black text-red-500 hover:text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 px-1 rounded leading-none transition-colors"
+                title="Remove soldier"
+              >
+                ✕
+              </button>
+            )}
           </div>
           {/* Bottom Row: Name (Given full width without wrapping/truncation constraint from other items) */}
           <div className="truncate text-xs font-black text-gray-900 dark:text-white leading-tight mt-0.5" title={trainee.name}>

@@ -9,6 +9,7 @@ import { DualLaneModal } from '../modals/DualLaneModal';
 import { HrpClickerModal } from '../modals/HrpClickerModal';
 import { DualLaneTraineeCard } from './DualLaneTraineeCard';
 import { RETEST_LANE_NUM } from '../../utils/aft/retestHelpers';
+import { AddRetestSoldierModal } from '../modals/AddRetestSoldierModal';
 
 interface GradingViewProps {
   selectedLane: number;
@@ -47,6 +48,8 @@ interface GradingViewProps {
   activeCountByLane?: Record<number, number>;
   dualLanes?: Record<number, { primaryLane: number; active: boolean }>;
   onSelectSecondaryLane?: (laneNum: number | null) => void;
+  onAddRetestSoldier?: (soldier: { name: string; age: number; vestNumber?: string; rosterNumber?: string }) => void;
+  onRemoveRetestSoldier?: (traineeId: string) => void;
 }
 
 export const GradingView: React.FC<GradingViewProps> = ({
@@ -80,9 +83,12 @@ export const GradingView: React.FC<GradingViewProps> = ({
   allLaneConfigs,
   activeCountByLane,
   dualLanes,
-  onSelectSecondaryLane
+  onSelectSecondaryLane,
+  onAddRetestSoldier,
+  onRemoveRetestSoldier
 }) => {
   const [isDualLaneModalOpen, setIsDualLaneModalOpen] = useState<boolean>(false);
+  const [isAddSoldierModalOpen, setIsAddSoldierModalOpen] = useState<boolean>(false);
   const [activeHrpTrainee, setActiveHrpTrainee] = useState<TraineeRecord | null>(null);
 
   const [currentEventIndex, setCurrentEventIndex] = useState<number>(() => {
@@ -385,48 +391,91 @@ export const GradingView: React.FC<GradingViewProps> = ({
             ) : (
               /* Regular Full-Width Trainee List */
               <section className="space-y-2.5">
-                {currentTrainees.map((trainee) => {
-                  const isMDL = currentEvent.code === 'MDL';
-                  const isHRP = currentEvent.code === 'HRP';
-                  const isSDC = currentEvent.code === 'SDC';
-                  const isPLK = currentEvent.code === 'PLK';
-                  const rawValStr = trainee.scores[currentEvent.code] || '';
-                  const rawValStr2 = trainee.scores.MDL2 || '';
-                  const hasInput = rawValStr.trim() !== '' || (isMDL && rawValStr2.trim() !== '');
-                  const isSdcRunning = isSDC && !!sdcStartTimes[trainee.id];
-                  const isPlkSelected = isPLK && selectedPlkIds.includes(trainee.id);
-                  const isPlkActive = isPLK && plkRunningIds.includes(trainee.id);
-                  const isPlkDisabled = isPLK && plkTimerRunning && !isPlkActive;
-                  const isGradingLocked = currentEvent.code === '2MR' && selectedLane !== RETEST_LANE_NUM && !!dualLanes?.[selectedLane]?.active;
+                {selectedLane === RETEST_LANE_NUM && onAddRetestSoldier && (
+                  <div className="flex items-center justify-between px-1 py-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black text-gray-800 dark:text-gray-200">
+                        Re-Test Lane ({currentTrainees.length})
+                      </span>
+                      <span className="text-[10px] font-bold text-gray-400">
+                        Failures & Additional Soldiers
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddSoldierModalOpen(true)}
+                      className="flex items-center gap-1 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 px-2.5 py-1 text-xs font-black text-white shadow-xs"
+                      title="Add non-listed soldier to Re-Test lane"
+                    >
+                      <span>+</span>
+                      <span>ADD SOLDIER</span>
+                    </button>
+                  </div>
+                )}
 
-                  return (
-                    <TraineeCard
-                      key={trainee.id}
-                      trainee={trainee}
-                      currentEvent={currentEvent}
-                      currentLaneConfig={currentLaneConfig}
-                      isMDL={isMDL}
-                      isHRP={isHRP}
-                      isSDC={isSDC}
-                      isPLK={isPLK}
-                      rawValStr={rawValStr}
-                      rawValStr2={rawValStr2}
-                      hasInput={hasInput}
-                      isSdcRunning={isSdcRunning}
-                      sdcElapsedMs={sdcElapsedMs[trainee.id] || 0}
-                      isPlkSelected={isPlkSelected}
-                      isPlkActive={isPlkActive}
-                      isPlkDisabled={isPlkDisabled}
-                      isGradingLocked={isGradingLocked}
-                      timerRunning={plkTimerRunning}
-                      onScoreChange={onScoreChange}
-                      onUpdateTrainee={onUpdateTrainee}
-                      onTogglePlkSelect={onTogglePlkSelect}
-                      onTimerAction={onTimerAction}
-                      onOpenHrpClicker={setActiveHrpTrainee}
-                    />
-                  );
-                })}
+                {currentTrainees.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-gray-300 dark:border-slate-800 p-8 text-center flex flex-col items-center justify-center gap-3">
+                    <span className="text-3xl">🎖️</span>
+                    <div className="text-sm font-bold text-gray-500 dark:text-gray-400">
+                      {selectedLane === RETEST_LANE_NUM
+                        ? 'No failed trainees or additional soldiers in Re-Test lane.'
+                        : 'No trainees in this lane.'}
+                    </div>
+                    {selectedLane === RETEST_LANE_NUM && onAddRetestSoldier && (
+                      <button
+                        type="button"
+                        onClick={() => setIsAddSoldierModalOpen(true)}
+                        className="rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 px-4 py-2 text-xs font-black text-white shadow-md"
+                      >
+                        + Add Soldier
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  currentTrainees.map((trainee) => {
+                    const isMDL = currentEvent.code === 'MDL';
+                    const isHRP = currentEvent.code === 'HRP';
+                    const isSDC = currentEvent.code === 'SDC';
+                    const isPLK = currentEvent.code === 'PLK';
+                    const rawValStr = trainee.scores[currentEvent.code] || '';
+                    const rawValStr2 = trainee.scores.MDL2 || '';
+                    const hasInput = rawValStr.trim() !== '' || (isMDL && rawValStr2.trim() !== '');
+                    const isSdcRunning = isSDC && !!sdcStartTimes[trainee.id];
+                    const isPlkSelected = isPLK && selectedPlkIds.includes(trainee.id);
+                    const isPlkActive = isPLK && plkRunningIds.includes(trainee.id);
+                    const isPlkDisabled = isPLK && plkTimerRunning && !isPlkActive;
+                    const isGradingLocked = currentEvent.code === '2MR' && selectedLane !== RETEST_LANE_NUM && !!dualLanes?.[selectedLane]?.active;
+
+                    return (
+                      <TraineeCard
+                        key={trainee.id}
+                        trainee={trainee}
+                        currentEvent={currentEvent}
+                        currentLaneConfig={currentLaneConfig}
+                        isMDL={isMDL}
+                        isHRP={isHRP}
+                        isSDC={isSDC}
+                        isPLK={isPLK}
+                        rawValStr={rawValStr}
+                        rawValStr2={rawValStr2}
+                        hasInput={hasInput}
+                        isSdcRunning={isSdcRunning}
+                        sdcElapsedMs={sdcElapsedMs[trainee.id] || 0}
+                        isPlkSelected={isPlkSelected}
+                        isPlkActive={isPlkActive}
+                        isPlkDisabled={isPlkDisabled}
+                        isGradingLocked={isGradingLocked}
+                        timerRunning={plkTimerRunning}
+                        onScoreChange={onScoreChange}
+                        onUpdateTrainee={onUpdateTrainee}
+                        onTogglePlkSelect={onTogglePlkSelect}
+                        onTimerAction={onTimerAction}
+                        onOpenHrpClicker={setActiveHrpTrainee}
+                        onRemoveCustomTrainee={onRemoveRetestSoldier}
+                      />
+                    );
+                  })
+                )}
               </section>
             )}
           </>
@@ -460,21 +509,38 @@ export const GradingView: React.FC<GradingViewProps> = ({
                       </p>
                     </div>
 
-                    {/* Total Results Button */}
-                    {onOpenAllResults && (
-                      <button
-                        type="button"
-                        onClick={onOpenAllResults}
-                        className={`shrink-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black shadow-sm transition-all active:scale-95 border ${isDarkText
-                            ? 'bg-black/10 hover:bg-black/20 text-black border-black/20'
-                            : 'bg-white/20 hover:bg-white/30 text-white border-white/30'
-                          }`}
-                        title="View Total Results Scorecard"
-                      >
-                        <span>📊</span>
-                        <span>Total Results</span>
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {selectedLane === RETEST_LANE_NUM && onAddRetestSoldier && (
+                        <button
+                          type="button"
+                          onClick={() => setIsAddSoldierModalOpen(true)}
+                          className={`shrink-0 flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-black shadow-sm transition-all active:scale-95 border ${isDarkText
+                              ? 'bg-black/10 hover:bg-black/20 text-black border-black/20'
+                              : 'bg-white/20 hover:bg-white/30 text-white border-white/30'
+                            }`}
+                          title="Add Soldier"
+                        >
+                          <span>🎖️</span>
+                          <span>+ Add Soldier</span>
+                        </button>
+                      )}
+
+                      {/* Total Results Button */}
+                      {onOpenAllResults && (
+                        <button
+                          type="button"
+                          onClick={onOpenAllResults}
+                          className={`shrink-0 flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-black shadow-sm transition-all active:scale-95 border ${isDarkText
+                              ? 'bg-black/10 hover:bg-black/20 text-black border-black/20'
+                              : 'bg-white/20 hover:bg-white/30 text-white border-white/30'
+                            }`}
+                          title="View Total Results Scorecard"
+                        >
+                          <span>📊</span>
+                          <span>Total Results</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </section>
               );
@@ -528,6 +594,16 @@ export const GradingView: React.FC<GradingViewProps> = ({
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-black text-black dark:text-white">RN #{trainee.rosterNumber}</span>
                         <span className="text-xs font-black text-gray-900 dark:text-white">{trainee.name}</span>
+                        {onRemoveRetestSoldier && trainee.id.startsWith('custom-retest-') && (
+                          <button
+                            type="button"
+                            onClick={() => onRemoveRetestSoldier(trainee.id)}
+                            className="text-[10px] font-black text-red-500 hover:text-red-700 bg-red-50 dark:bg-red-950/40 px-1 py-0.5 rounded leading-none transition-colors"
+                            title="Remove soldier"
+                          >
+                            ✕
+                          </button>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-black text-blue-900 dark:text-blue-300">{total} / 500</span>
@@ -635,6 +711,16 @@ export const GradingView: React.FC<GradingViewProps> = ({
           onSaveScore={(traineeId, reps) => {
             onScoreChange(traineeId, 'HRP', String(reps), selectedLane);
           }}
+        />
+      )}
+
+      {/* Add Soldier Modal (Re-Test Lane only) */}
+      {onAddRetestSoldier && (
+        <AddRetestSoldierModal
+          isOpen={isAddSoldierModalOpen}
+          onClose={() => setIsAddSoldierModalOpen(false)}
+          defaultVestNumber={String(currentTrainees.length + 1)}
+          onAdd={onAddRetestSoldier}
         />
       )}
     </>
