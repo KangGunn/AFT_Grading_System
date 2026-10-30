@@ -510,6 +510,18 @@ export function useAftRoster() {
     }
   };
 
+  const reorderCustomRetestSoldiers = async (nextList: TraineeRecord[]) => {
+    retestCustomTraineesRef.current = nextList;
+    setRetestCustomTrainees(nextList);
+
+    try {
+      const customRef = dbRef(db, 'aft_sessions/retest_custom_trainees');
+      await dbSet(customRef, nextList);
+    } catch (e) {
+      console.warn('Failed to sync reordered custom retest trainees to Firebase:', e);
+    }
+  };
+
   const updateCustomRetestScore = async (
     traineeId: string,
     eventCode: EventCode,
@@ -548,6 +560,7 @@ export function useAftRoster() {
     addCustomRetestSoldier,
     editCustomRetestSoldier,
     removeCustomRetestSoldier,
+    reorderCustomRetestSoldiers,
     updateCustomRetestScore,
     dualLanes,
     setDualLane,

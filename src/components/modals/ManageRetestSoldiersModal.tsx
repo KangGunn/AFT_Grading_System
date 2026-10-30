@@ -21,6 +21,7 @@ interface ManageRetestSoldiersModalProps {
     rosterNumber?: string;
   }) => void;
   onDelete: (traineeId: string) => void;
+  onReorder?: (soldiers: TraineeRecord[]) => void;
 }
 
 export const ManageRetestSoldiersModal: React.FC<ManageRetestSoldiersModalProps> = ({
@@ -31,7 +32,8 @@ export const ManageRetestSoldiersModal: React.FC<ManageRetestSoldiersModalProps>
   initialEditingSoldier = null,
   onAdd,
   onEdit,
-  onDelete
+  onDelete,
+  onReorder
 }) => {
   const [activeTab, setActiveTab] = useState<'list' | 'form'>('list');
   const [editingSoldierId, setEditingSoldierId] = useState<string | null>(null);
@@ -42,25 +44,20 @@ export const ManageRetestSoldiersModal: React.FC<ManageRetestSoldiersModalProps>
   const [rosterNumber, setRosterNumber] = useState('');
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Initialize or reset when modal opens or initial editing soldier changes
   useEffect(() => {
     if (isOpen) {
       setError('');
       setDeletingId(null);
+      setDraggedIndex(null);
       if (initialEditingSoldier) {
         setEditingSoldierId(initialEditingSoldier.id);
         setName(initialEditingSoldier.name);
         setAge(String(initialEditingSoldier.age));
         setVestNumber(initialEditingSoldier.vestNumber);
         setRosterNumber(initialEditingSoldier.rosterNumber);
-        setActiveTab('form');
-      } else if (customSoldiers.length === 0) {
-        setEditingSoldierId(null);
-        setName('');
-        setAge('');
-        setVestNumber('');
-        setRosterNumber('');
         setActiveTab('form');
       } else {
         setEditingSoldierId(null);
@@ -98,6 +95,32 @@ export const ManageRetestSoldiersModal: React.FC<ManageRetestSoldiersModalProps>
     setVestNumber('');
     setRosterNumber('');
     setActiveTab('form');
+  };
+
+  const moveSoldier = (fromIndex: number, direction: -1 | 1) => {
+    const toIndex = fromIndex + direction;
+    if (toIndex < 0 || toIndex >= customSoldiers.length) return;
+    const nextList = [...customSoldiers];
+    const temp = nextList[fromIndex];
+    nextList[fromIndex] = nextList[toIndex];
+    nextList[toIndex] = temp;
+    if (onReorder) {
+      onReorder(nextList);
+    }
+  };
+
+  const handleDrop = (targetIndex: number) => {
+    if (draggedIndex === null || draggedIndex === targetIndex) {
+      setDraggedIndex(null);
+      return;
+    }
+    const nextList = [...customSoldiers];
+    const [removed] = nextList.splice(draggedIndex, 1);
+    nextList.splice(targetIndex, 0, removed);
+    setDraggedIndex(null);
+    if (onReorder) {
+      onReorder(nextList);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -168,43 +191,47 @@ export const ManageRetestSoldiersModal: React.FC<ManageRetestSoldiersModalProps>
           </button>
         </div>
 
-        {/* Tab Controls (Roster List vs Add/Edit Form) */}
-        <div className="flex items-center gap-2 pt-3 pb-1 border-b dark:border-slate-800 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              setError('');
-              setDeletingId(null);
-              setActiveTab('list');
-            }}
-            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'list'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700'
-            }`}
-          >
-            <span>📋 Soldiers</span>
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-              activeTab === 'list'
-                ? 'bg-blue-800 text-amber-300'
-                : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300'
-            }`}>
-              {customSoldiers.length}
-            </span>
-          </button>
+        {/* Soldiers Action Header (When in List mode) */}
+        {activeTab === 'list' && (
+          <div className="flex items-center justify-between pt-3 pb-2 border-b dark:border-slate-800 shrink-0 px-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
+                <span>📋 Soldiers</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/50">
+                  {customSoldiers.length}
+                </span>
+              </span>
+            </div>
 
-          <button
-            type="button"
-            onClick={startAddSoldier}
-            className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 whitespace-nowrap ${
-              activeTab === 'form'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700'
-            }`}
-          >
-            <span>{editingSoldierId ? '✏️ Edit Soldier' : '➕ Add Soldier'}</span>
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={startAddSoldier}
+              className="text-xs font-black text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+            >
+              + Add Soldier
+            </button>
+          </div>
+        )}
+
+        {/* Form Header (When in Form mode) */}
+        {activeTab === 'form' && (
+          <div className="flex items-center justify-between pt-3 pb-2 border-b dark:border-slate-800 shrink-0 px-1">
+            <span className="text-xs font-black text-gray-800 dark:text-gray-200">
+              {editingSoldierId ? '✏️ Edit Soldier Details' : '➕ Add New External Soldier'}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setError('');
+                setEditingSoldierId(null);
+                setActiveTab('list');
+              }}
+              className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+            >
+              ← Back to Soldiers
+            </button>
+          </div>
+        )}
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto overscroll-contain py-3 min-h-0">
@@ -226,106 +253,121 @@ export const ManageRetestSoldiersModal: React.FC<ManageRetestSoldiersModalProps>
                     onClick={startAddSoldier}
                     className="mt-1 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 px-4 py-2 text-xs font-black text-white shadow-sm"
                   >
-                    + Add First Soldier
+                    + Add Soldier
                   </button>
                 </div>
               ) : (
-                <>
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-[11px] font-bold text-gray-500 dark:text-gray-400">
-                      External Soldiers ({customSoldiers.length})
-                    </span>
-                    <button
-                      type="button"
-                      onClick={startAddSoldier}
-                      className="text-[11px] font-black text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                    >
-                      + Add Soldier
-                    </button>
-                  </div>
+                <div className="flex flex-col gap-2">
+                  {customSoldiers.map((soldier, index) => {
+                    const isDeleting = deletingId === soldier.id;
+                    const hasScores = Object.values(soldier.scores || {}).some(v => (v || '').trim() !== '');
 
-                  <div className="flex flex-col gap-2">
-                    {customSoldiers.map((soldier) => {
-                      const isDeleting = deletingId === soldier.id;
-                      const hasScores = Object.values(soldier.scores || {}).some(v => (v || '').trim() !== '');
-
-                      return (
-                        <div
-                          key={soldier.id}
-                          className="rounded-2xl border border-gray-200 dark:border-slate-800 bg-gray-50/70 dark:bg-slate-800/60 p-2.5 flex flex-col gap-2 transition-all hover:border-blue-400/50"
-                        >
-                          <div className="flex items-center justify-between gap-2 min-w-0">
-                            {/* Left: Vest & Info */}
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              <div className="flex h-7 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white font-black text-xs shadow-xs">
-                                {soldier.vestNumber ? `#${soldier.vestNumber}` : '-'}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="truncate text-xs font-black text-gray-900 dark:text-white" title={soldier.name}>
-                                  {soldier.name}
-                                </div>
-                                <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                  {soldier.rosterNumber && (
-                                    <>
-                                      <span className="font-bold text-blue-600 dark:text-blue-400">#{soldier.rosterNumber}</span>
-                                      <span>·</span>
-                                    </>
-                                  )}
-                                  <span>Age {soldier.age} ({soldier.ageGroup})</span>
-                                </div>
-                              </div>
+                    return (
+                      <div
+                        key={soldier.id}
+                        draggable
+                        onDragStart={() => setDraggedIndex(index)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={() => handleDrop(index)}
+                        className={`rounded-2xl border border-gray-200 dark:border-slate-800 bg-gray-50/70 dark:bg-slate-800/60 p-2.5 flex flex-col gap-2 transition-all hover:border-blue-400/50 ${
+                          draggedIndex === index ? 'opacity-40 ring-2 ring-blue-500' : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                          {/* Left: Reorder Buttons, Vest & Info */}
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            {/* Up / Down Reorder Buttons */}
+                            <div className="flex flex-col gap-0.5 shrink-0">
+                              <button
+                                type="button"
+                                disabled={index === 0}
+                                onClick={() => moveSoldier(index, -1)}
+                                className="h-4 w-5 flex items-center justify-center rounded bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-[8px] text-gray-700 dark:text-gray-200 disabled:opacity-20 disabled:pointer-events-none transition-all active:scale-90"
+                                title="Move Up"
+                                aria-label="Move Up"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                type="button"
+                                disabled={index === customSoldiers.length - 1}
+                                onClick={() => moveSoldier(index, 1)}
+                                className="h-4 w-5 flex items-center justify-center rounded bg-gray-200 hover:bg-gray-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-[8px] text-gray-700 dark:text-gray-200 disabled:opacity-20 disabled:pointer-events-none transition-all active:scale-90"
+                                title="Move Down"
+                                aria-label="Move Down"
+                              >
+                                ▼
+                              </button>
                             </div>
 
-                            {/* Right: Actions */}
-                            <div className="flex items-center gap-1 shrink-0 whitespace-nowrap">
-                              <button
-                                type="button"
-                                onClick={() => startEditSoldier(soldier)}
-                                className="rounded-lg bg-blue-100 hover:bg-blue-200 dark:bg-blue-950/80 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 text-xs font-bold transition-colors active:scale-95"
-                                title="Edit soldier details"
-                              >
-                                ✏️ Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setDeletingId(isDeleting ? null : soldier.id)}
-                                className="rounded-lg bg-red-100 hover:bg-red-200 dark:bg-red-950/80 dark:hover:bg-red-900 text-red-700 dark:text-red-300 px-2 py-1 text-xs font-bold transition-colors active:scale-95"
-                                title="Delete soldier"
-                              >
-                                🗑️ Delete
-                              </button>
+                            <div className="flex h-7 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-white font-black text-xs shadow-xs">
+                              {soldier.vestNumber ? `#${soldier.vestNumber}` : '-'}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-xs font-black text-gray-900 dark:text-white" title={soldier.name}>
+                                {soldier.name}
+                              </div>
+                              <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                                {soldier.rosterNumber && (
+                                  <>
+                                    <span className="font-bold text-blue-600 dark:text-blue-400">#{soldier.rosterNumber}</span>
+                                    <span>·</span>
+                                  </>
+                                )}
+                                <span>Age {soldier.age} ({soldier.ageGroup})</span>
+                              </div>
                             </div>
                           </div>
 
-                          {/* Delete Confirmation Banner */}
-                          {isDeleting && (
-                            <div className="rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 p-2 flex items-center justify-between gap-2 text-xs animate-in fade-in duration-150">
-                              <div className="text-[11px] font-bold text-red-700 dark:text-red-300 min-w-0 truncate">
-                                Delete {soldier.name}? {hasScores && '(Scores will be removed)'}
-                              </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => confirmDelete(soldier.id)}
-                                  className="rounded-lg bg-red-600 hover:bg-red-700 text-white font-black px-2 py-1 text-[11px] shadow-xs active:scale-95"
-                                >
-                                  Yes, Delete
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setDeletingId(null)}
-                                  className="rounded-lg bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 font-bold px-2 py-1 text-[11px] active:scale-95"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                          {/* Right: Actions */}
+                          <div className="flex items-center gap-1 shrink-0 whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => startEditSoldier(soldier)}
+                              className="rounded-lg bg-blue-100 hover:bg-blue-200 dark:bg-blue-950/80 dark:hover:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 text-xs font-bold transition-colors active:scale-95"
+                              title="Edit soldier details"
+                            >
+                              ✏️ Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeletingId(isDeleting ? null : soldier.id)}
+                              className="rounded-lg bg-red-100 hover:bg-red-200 dark:bg-red-950/80 dark:hover:bg-red-900 text-red-700 dark:text-red-300 px-2 py-1 text-xs font-bold transition-colors active:scale-95"
+                              title="Delete soldier"
+                            >
+                              🗑️ Delete
+                            </button>
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </>
+
+                        {/* Delete Confirmation Banner */}
+                        {isDeleting && (
+                          <div className="rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 p-2 flex items-center justify-between gap-2 text-xs animate-in fade-in duration-150">
+                            <div className="text-[11px] font-bold text-red-700 dark:text-red-300 min-w-0 truncate">
+                              Delete {soldier.name}? {hasScores && '(Scores will be removed)'}
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => confirmDelete(soldier.id)}
+                                className="rounded-lg bg-red-600 hover:bg-red-700 text-white font-black px-2 py-1 text-[11px] shadow-xs active:scale-95"
+                              >
+                                Yes, Delete
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeletingId(null)}
+                                className="rounded-lg bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 font-bold px-2 py-1 text-[11px] active:scale-95"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
@@ -333,24 +375,6 @@ export const ManageRetestSoldiersModal: React.FC<ManageRetestSoldiersModalProps>
           {/* TAB 2: ADD / EDIT SOLDIER FORM */}
           {activeTab === 'form' && (
             <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-black text-gray-800 dark:text-gray-200">
-                  {editingSoldierId ? 'Edit Soldier Details' : 'Add New External Soldier'}
-                </span>
-                {editingSoldierId && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingSoldierId(null);
-                      setActiveTab('list');
-                    }}
-                    className="text-[11px] font-bold text-gray-400 hover:text-gray-200"
-                  >
-                    Cancel Editing
-                  </button>
-                )}
-              </div>
-
               {error && (
                 <div className="rounded-xl bg-red-500/10 border border-red-500/30 px-3 py-2 text-xs font-bold text-red-600 dark:text-red-400">
                   {error}

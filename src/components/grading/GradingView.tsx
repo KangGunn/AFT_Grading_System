@@ -52,6 +52,7 @@ interface GradingViewProps {
   onAddRetestSoldier?: (soldier: { name: string; age: number; vestNumber?: string; rosterNumber?: string }) => void;
   onEditRetestSoldier?: (traineeId: string, soldier: { name: string; age: number; vestNumber?: string; rosterNumber?: string }) => void;
   onRemoveRetestSoldier?: (traineeId: string) => void;
+  onReorderRetestSoldiers?: (soldiers: TraineeRecord[]) => void;
 }
 
 export const GradingView: React.FC<GradingViewProps> = ({
@@ -89,7 +90,8 @@ export const GradingView: React.FC<GradingViewProps> = ({
   retestCustomTrainees,
   onAddRetestSoldier,
   onEditRetestSoldier,
-  onRemoveRetestSoldier
+  onRemoveRetestSoldier,
+  onReorderRetestSoldiers
 }) => {
   const [isDualLaneModalOpen, setIsDualLaneModalOpen] = useState<boolean>(false);
   const [isManageSoldiersModalOpen, setIsManageSoldiersModalOpen] = useState<boolean>(false);
@@ -734,6 +736,7 @@ export const GradingView: React.FC<GradingViewProps> = ({
           onAdd={onAddRetestSoldier}
           onEdit={onEditRetestSoldier}
           onDelete={onRemoveRetestSoldier}
+          onReorder={onReorderRetestSoldiers}
         />
       )}
     </>

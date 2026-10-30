@@ -61,6 +61,7 @@ export default function AftGradeView({ }: Props) {
     addCustomRetestSoldier,
     editCustomRetestSoldier,
     removeCustomRetestSoldier,
+    reorderCustomRetestSoldiers,
     updateCustomRetestScore,
     dualLanes,
     setDualLane,
@@ -216,6 +217,10 @@ export default function AftGradeView({ }: Props) {
       delete next[traineeId];
       return next;
     });
+  };
+
+  const handleReorderRetestSoldiers = (reordered: TraineeRecord[]) => {
+    reorderCustomRetestSoldiers(reordered);
   };
 
   // 2. Timer & Stopwatch Hook
@@ -479,6 +484,7 @@ export default function AftGradeView({ }: Props) {
             onAddRetestSoldier={selectedLane === RETEST_LANE_NUM ? handleAddRetestSoldier : undefined}
             onEditRetestSoldier={selectedLane === RETEST_LANE_NUM ? handleEditRetestSoldier : undefined}
             onRemoveRetestSoldier={selectedLane === RETEST_LANE_NUM ? handleRemoveRetestSoldier : undefined}
+            onReorderRetestSoldiers={selectedLane === RETEST_LANE_NUM ? handleReorderRetestSoldiers : undefined}
           />
         )}
       </div>

@@ -75,7 +75,7 @@ export const StandardsModal: React.FC<StandardsModalProps> = ({ isOpen, onClose 
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-slate-800 font-mono text-xs">
               {(() => {
-                let tableData: Record<number, Record<AgeGroupKey, number>>;
+                let tableData: Record<number, Partial<Record<AgeGroupKey, number>>>;
                 let isTimeFormat = false;
 
                 switch (standardsEventTab) {
