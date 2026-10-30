@@ -1,5 +1,5 @@
 import React from 'react';
-import type { TraineeRecord, LaneConfig } from '../../types/aft/aft.types';
+import type { TraineeRecord, LaneConfig, Platoon } from '../../types/aft/aft.types';
 import { formatSecondsToTime } from '../../data/aftStandards2025';
 import { getContrastTextColor } from '../../lib/utils';
 
@@ -18,6 +18,8 @@ interface TwoMileRunStartPointViewProps {
   onReset2MrTimer: () => void;
   onBackToLanes: () => void;
   onSelectLane2Mr: (laneNum: number) => void;
+  activePlatoon?: Platoon;
+  onSelectPlatoon?: (platoon: Platoon) => void;
 }
 
 export const TwoMileRunStartPointView: React.FC<TwoMileRunStartPointViewProps> = ({
@@ -30,7 +32,9 @@ export const TwoMileRunStartPointView: React.FC<TwoMileRunStartPointViewProps> =
   onStart2MrTimer,
   onReset2MrTimer,
   onBackToLanes,
-  onSelectLane2Mr
+  onSelectLane2Mr,
+  activePlatoon,
+  onSelectPlatoon
 }) => {
   const isRunning = twoMileRunSync.status === 'running';
 
@@ -77,6 +81,9 @@ export const TwoMileRunStartPointView: React.FC<TwoMileRunStartPointViewProps> =
           </button>
           <div className="text-center">
             <h1 className="text-base font-black tracking-wider">2MR MASTER CLOCK</h1>
+            <span className="text-[10px] font-bold text-blue-200 uppercase tracking-widest block">
+              {activePlatoon ? `${activePlatoon.toUpperCase()} PLATOON` : ''}
+            </span>
           </div>
           <div className="flex items-center gap-1.5 text-[11px] font-black bg-blue-950/80 px-2.5 py-1 rounded-xl border border-blue-800">
             <span className={`h-2 w-2 rounded-full ${isFirebaseConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}></span>
@@ -87,6 +94,44 @@ export const TwoMileRunStartPointView: React.FC<TwoMileRunStartPointViewProps> =
 
       {/* Main Scrollable Content */}
       <main className="flex-1 overflow-y-auto overscroll-contain p-3.5 flex flex-col gap-3.5 min-h-0">
+        {/* Platoon Switcher (Alpha RN ≤ 100 / Bravo RN ≥ 101) */}
+        {onSelectPlatoon && activePlatoon && (
+          <section className="bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-sm flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => onSelectPlatoon('alpha')}
+              className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+                activePlatoon === 'alpha'
+                  ? 'bg-blue-900 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <span>Alpha Platoon</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                activePlatoon === 'alpha' ? 'bg-blue-800 text-blue-100' : 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-400'
+              }`}>
+                RN ≤ 100
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSelectPlatoon('bravo')}
+              className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+                activePlatoon === 'bravo'
+                  ? 'bg-blue-900 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <span>Bravo Platoon</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                activePlatoon === 'bravo' ? 'bg-blue-800 text-blue-100' : 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-400'
+              }`}>
+                RN ≥ 101
+              </span>
+            </button>
+          </section>
+        )}
         {/* 1. Dedicated Stopwatch Display Card */}
         <div className="w-full flex flex-col items-center justify-center py-4 px-5 rounded-2xl bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-950 text-white border border-blue-800 shadow-md relative overflow-hidden">
           {/* Glowing Status Indicator */}
@@ -143,7 +188,7 @@ export const TwoMileRunStartPointView: React.FC<TwoMileRunStartPointViewProps> =
                         ? 'bg-white dark:bg-slate-800/90 border-gray-200 dark:border-slate-700'
                         : 'bg-gray-50/70 border-gray-200/80 dark:bg-slate-900/60 dark:border-slate-800/80'
                   }`}
-                  title={`Lane ${laneNum} 2MR 채점 화면으로 이동`}
+                  title={`Open Lane ${laneNum} 2MR evaluation`}
                 >
                   {/* Left: Vest Color Badge + Lane Name */}
                   <div className="flex items-center gap-1.5 min-w-0">

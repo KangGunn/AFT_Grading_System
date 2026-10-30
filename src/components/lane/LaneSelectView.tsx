@@ -1,5 +1,5 @@
 import React from 'react';
-import type { LaneConfig, TraineeRecord } from '../../types/aft/aft.types';
+import type { LaneConfig, TraineeRecord, Platoon } from '../../types/aft/aft.types';
 import { LaneCard } from './LaneCard';
 
 interface LaneSelectViewProps {
@@ -10,6 +10,8 @@ interface LaneSelectViewProps {
   onSelectLane: (laneNum: number) => void;
   onOpen2MrStartPoint: () => void;
   onSelectReTestLane?: () => void;
+  activePlatoon: Platoon;
+  onSelectPlatoon: (platoon: Platoon) => void;
 }
 
 export const LaneSelectView: React.FC<LaneSelectViewProps> = ({
@@ -19,7 +21,9 @@ export const LaneSelectView: React.FC<LaneSelectViewProps> = ({
   failedCount = 0,
   onSelectLane,
   onOpen2MrStartPoint,
-  onSelectReTestLane
+  onSelectReTestLane,
+  activePlatoon,
+  onSelectPlatoon
 }) => {
   const getLaneRosterRange = (laneNum: number) => {
     const laneList = laneTrainees[laneNum] || [];
@@ -33,6 +37,43 @@ export const LaneSelectView: React.FC<LaneSelectViewProps> = ({
 
   return (
     <main className="w-full flex-1 overflow-y-auto overscroll-contain px-4 py-3 flex flex-col gap-2.5 min-h-0">
+      {/* Platoon Switcher: Alpha (RN ≤ 100) vs Bravo (RN ≥ 101) */}
+      <section className="bg-white dark:bg-slate-800 p-1.5 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-sm flex items-center gap-1.5 shrink-0">
+        <button
+          type="button"
+          onClick={() => onSelectPlatoon('alpha')}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+            activePlatoon === 'alpha'
+              ? 'bg-blue-900 text-white shadow-sm'
+              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700/60'
+          }`}
+        >
+          <span>Alpha Platoon</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
+            activePlatoon === 'alpha' ? 'bg-blue-800 text-blue-100' : 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-400'
+          }`}>
+            RN ≤ 100
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onSelectPlatoon('bravo')}
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+            activePlatoon === 'bravo'
+              ? 'bg-blue-900 text-white shadow-sm'
+              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700/60'
+          }`}
+        >
+          <span>Bravo Platoon</span>
+          <span className={`text-[10px] px-1.5 py-0.2 rounded-md font-bold ${
+            activePlatoon === 'bravo' ? 'bg-blue-800 text-blue-100' : 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-400'
+          }`}>
+            RN ≥ 101
+          </span>
+        </button>
+      </section>
+
       {/* 10 Vertical Lane Selection Buttons */}
       <section className="space-y-2.5">
         {Array.from({ length: 10 }, (_, i) => i + 1).map(laneNum => {

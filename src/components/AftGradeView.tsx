@@ -13,6 +13,7 @@ import { LaneSelectView } from './lane/LaneSelectView';
 import { GradingView } from './grading/GradingView';
 import { TwoMileRunStartPointView } from './aft/TwoMileRunStartPointView';
 import { AllResultsView } from './aft/AllResultsView';
+import { SettingsView } from './settings/SettingsView';
 import { ImportModal } from './modals/ImportModal';
 import { StandardsModal } from './modals/StandardsModal';
 import { VestSettingsModal } from './modals/VestSettingsModal';
@@ -23,11 +24,17 @@ interface Props {
 }
 
 export default function AftGradeView({ }: Props) {
-  // Screen mode: 'lane_select' (Hub), 'grading' (Lane Evaluation / Re-Test), '2mr_start_point' (Dedicated 2MR Master Clock), 'all_results' (Full Roster Spreadsheet View)
-  const [currentView, setCurrentView] = useState<'lane_select' | 'grading' | '2mr_start_point' | 'all_results'>(() => {
+  // Screen mode: 'lane_select' (Hub), 'grading' (Lane Evaluation / Re-Test), '2mr_start_point' (Dedicated 2MR Master Clock), 'all_results' (Full Roster Spreadsheet View), 'settings' (System Settings Hub)
+  const [currentView, setCurrentView] = useState<'lane_select' | 'grading' | '2mr_start_point' | 'all_results' | 'settings'>(() => {
     if (typeof window !== 'undefined') {
       const saved = window.localStorage.getItem('aft_current_view');
-      if (saved === 'lane_select' || saved === 'grading' || saved === '2mr_start_point' || saved === 'all_results') {
+      if (
+        saved === 'lane_select' ||
+        saved === 'grading' ||
+        saved === '2mr_start_point' ||
+        saved === 'all_results' ||
+        saved === 'settings'
+      ) {
         return saved;
       }
     }
@@ -51,8 +58,17 @@ export default function AftGradeView({ }: Props) {
   const [showStandardsModal, setShowStandardsModal] = useState(false);
   const [showVestSettingsModal, setShowVestSettingsModal] = useState(false);
 
-  // 1. Roster State & Firebase RTDB Sync Hook
+  // 1. Roster State, Cohorts & Firebase RTDB Sync Hook
   const {
+    cohorts,
+    activeCohortId,
+    activeCohort,
+    activePlatoon,
+    switchPlatoon,
+    switchCohort,
+    createCohort,
+    deleteCohort,
+    renameCohort,
     laneTrainees,
     laneConfigs,
     activeCountByLane,
@@ -223,20 +239,25 @@ export default function AftGradeView({ }: Props) {
     reorderCustomRetestSoldiers(reordered);
   };
 
-  // 2. Timer & Stopwatch Hook
-  const timer = useAftTimer(selectedLane, (traineeId, eventCode, timeStr, targetLane) => {
-    const effectiveLane = targetLane || selectedLane;
-    if (effectiveLane === RETEST_LANE_NUM) {
-      const origLane = failedLaneMap.get(traineeId);
-      if (origLane !== undefined) {
-        updateRetestScore(origLane, traineeId, eventCode, timeStr);
+  // 2. Timer & Stopwatch Hook (Scoped to activeCohortId)
+  const timer = useAftTimer(
+    selectedLane,
+    (traineeId, eventCode, timeStr, targetLane) => {
+      const effectiveLane = targetLane || selectedLane;
+      if (effectiveLane === RETEST_LANE_NUM) {
+        const origLane = failedLaneMap.get(traineeId);
+        if (origLane !== undefined) {
+          updateRetestScore(origLane, traineeId, eventCode, timeStr);
+        } else {
+          updateCustomRetestScore(traineeId, eventCode, timeStr);
+        }
       } else {
-        updateCustomRetestScore(traineeId, eventCode, timeStr);
+        updateScore(effectiveLane, traineeId, eventCode, timeStr);
       }
-    } else {
-      updateScore(effectiveLane, traineeId, eventCode, timeStr);
-    }
-  });
+    },
+    activeCohortId,
+    activePlatoon
+  );
 
   const handleScoreChange = (traineeId: string, eventCode: EventCode, val: string, targetLane?: number) => {
     const effectiveLane = targetLane || selectedLane;
@@ -353,6 +374,13 @@ export default function AftGradeView({ }: Props) {
     }
   };
 
+  const handleOpenSettingsFromLaneSelect = () => {
+    setCurrentView('settings');
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('aft_current_view', 'settings');
+    }
+  };
+
   const handleBackFromAllResults = () => {
     if (allResultsSource === 'grading') {
       setCurrentView('grading');
@@ -398,8 +426,8 @@ export default function AftGradeView({ }: Props) {
         {currentView === 'lane_select' && (
           <>
             <LaneSelectHeader
-              onOpenImport={() => setShowImportModal(true)}
-              onOpenSettings={() => setShowVestSettingsModal(true)}
+              activeCohortName={activeCohort.name}
+              onOpenSettings={handleOpenSettingsFromLaneSelect}
               onOpenAllResults={handleOpenAllResultsFromLaneSelect}
             />
             <LaneSelectView
@@ -410,19 +438,43 @@ export default function AftGradeView({ }: Props) {
               onSelectLane={handleSelectLane}
               onOpen2MrStartPoint={handleOpen2MrMasterClock}
               onSelectReTestLane={handleSelectReTestLane}
+              activePlatoon={activePlatoon}
+              onSelectPlatoon={switchPlatoon}
             />
           </>
+        )}
+
+        {/* SCREEN: SETTINGS VIEW (System Settings Hub with Cohort Management) */}
+        {currentView === 'settings' && (
+          <SettingsView
+            cohorts={cohorts}
+            activeCohortId={activeCohortId}
+            onSwitchCohort={switchCohort}
+            onCreateCohort={createCohort}
+            onDeleteCohort={deleteCohort}
+            onRenameCohort={renameCohort}
+            laneConfigs={laneConfigs}
+            laneTrainees={laneTrainees}
+            activeCountByLane={activeCountByLane}
+            onBack={handleBackToLaneSelect}
+            onOpenVestSettings={() => setShowVestSettingsModal(true)}
+            onOpenImport={() => setShowImportModal(true)}
+          />
         )}
 
         {/* SCREEN: ALL RESULTS SPREADSHEET (Full Roster Results sorted by RN) */}
         {currentView === 'all_results' && (
           <AllResultsView
+            activeCohortId={activeCohort.id}
+            activeCohortName={activeCohort.name}
             laneTrainees={laneTrainees}
             activeCountByLane={activeCountByLane}
             laneConfigs={laneConfigs}
             onBackToLanes={handleBackFromAllResults}
             backButtonLabel={allResultsSource === 'grading' ? (selectedLane === RETEST_LANE_NUM ? 'Re-Test' : `Lane ${selectedLane}`) : 'Lanes'}
             onOpenReTest={handleOpenReTestFromAllResults}
+            activePlatoon={activePlatoon}
+            onSelectPlatoon={switchPlatoon}
           />
         )}
 
@@ -432,9 +484,11 @@ export default function AftGradeView({ }: Props) {
             twoMileRunSync={timer.twoMileRunSync}
             twoMileRunElapsedMs={timer.twoMileRunElapsedMs}
             isFirebaseConnected={isFirebaseConnected}
+            activePlatoon={activePlatoon}
+            onSelectPlatoon={switchPlatoon}
             laneTrainees={laneTrainees}
-            laneConfigs={laneConfigs}
             activeCountByLane={activeCountByLane}
+            laneConfigs={laneConfigs}
             onStart2MrTimer={() => timer.start2MrMasterTimer('Master Clock')}
             onReset2MrTimer={timer.reset2MrMasterTimer}
             onBackToLanes={handleBackToLaneSelect}
@@ -449,6 +503,8 @@ export default function AftGradeView({ }: Props) {
             currentLaneConfig={currentLaneConfig}
             currentTrainees={currentLaneTrainees}
             isFirebaseConnected={isFirebaseConnected}
+            activePlatoon={activePlatoon}
+            onSelectPlatoon={switchPlatoon}
             twoMileRunSync={timer.twoMileRunSync}
             twoMileRunElapsedMs={timer.twoMileRunElapsedMs}
             plkElapsedMs={timer.plkElapsedMs}

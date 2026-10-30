@@ -71,3 +71,24 @@ export function parseTimeToSeconds(timeStr: string): number {
   return parseFloat(trimmed) || 0;
 }
 
+export function formatAftDate(d: Date = new Date()): string {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const day = String(d.getDate()).padStart(2, '0');
+  const m = months[d.getMonth()];
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${day} ${m} ${yy}`;
+}
+
+export function timeStringToExcelNumber(timeStr?: string): number | undefined {
+  if (!timeStr || !timeStr.trim()) return undefined;
+  const trimmed = timeStr.trim();
+  if (trimmed === '-' || trimmed === 'Incomplete') return undefined;
+  if (trimmed.includes(':')) {
+    const parts = trimmed.split(':');
+    const m = parseInt(parts[0], 10) || 0;
+    const s = parseInt(parts[1], 10) || 0;
+    return m * 100 + s;
+  }
+  const num = parseInt(trimmed, 10);
+  return !isNaN(num) ? num : undefined;
+}

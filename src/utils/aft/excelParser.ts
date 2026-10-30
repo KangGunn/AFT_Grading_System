@@ -2,10 +2,20 @@ import * as XLSX from 'xlsx';
 import type { TraineeRecord } from '../../types/aft/aft.types';
 import { getAgeGroupFromAge } from './timeFormatter';
 
-export interface ParseExcelResult {
+export interface PlatoonRosterResult {
   parsedTraineesByLane: Record<number, TraineeRecord[]>;
   counts: Record<number, number>;
   totalTrainees: number;
+}
+
+export interface ParseExcelResult {
+  alpha: PlatoonRosterResult;
+  bravo: PlatoonRosterResult;
+  totalTrainees: number;
+  parsedTraineesByLane: Record<number, TraineeRecord[]>;
+  counts: Record<number, number>;
+  alphaDate?: string;
+  bravoDate?: string;
 }
 
 function isIntegerCell(val: unknown): boolean {
@@ -28,17 +38,86 @@ function isAgeCell(val: unknown): boolean {
   return num > 0 && num <= 120;
 }
 
+function distributeTraineesAcrossLanes(
+  rawList: { rn: string; name: string; age: number }[],
+  platoon: 'alpha' | 'bravo'
+): PlatoonRosterResult {
+  const numLanes = 10;
+  const total = rawList.length;
+  const counts: Record<number, number> = {};
+  const parsedTraineesByLane: Record<number, TraineeRecord[]> = {};
+
+  if (total === 0) {
+    for (let l = 1; l <= numLanes; l++) {
+      counts[l] = 0;
+      parsedTraineesByLane[l] = [];
+    }
+    return {
+      parsedTraineesByLane,
+      counts,
+      totalTrainees: 0
+    };
+  }
+
+  const baseCount = Math.floor(total / numLanes);
+  const remainder = total % numLanes;
+
+  for (let l = 1; l <= numLanes; l++) {
+    counts[l] = l <= remainder ? baseCount + 1 : baseCount;
+  }
+
+  let pointer = 0;
+  for (let l = 1; l <= numLanes; l++) {
+    const laneCount = counts[l];
+    const list: TraineeRecord[] = [];
+    for (let pos = 1; pos <= laneCount; pos++) {
+      if (pointer < rawList.length) {
+        const item = rawList[pointer++];
+        list.push({
+          id: `imp-${platoon}-l${l}-p${pos}-${Date.now()}`,
+          rosterNumber: item.rn,
+          vestNumber: `${pos}`,
+          name: item.name,
+          age: item.age,
+          ageGroup: getAgeGroupFromAge(item.age),
+          isDummy: false,
+          scores: { MDL: '', MDL2: '', HRP: '', SDC: '', PLK: '', '2MR': '' }
+        });
+      }
+    }
+    parsedTraineesByLane[l] = list;
+  }
+
+  return {
+    parsedTraineesByLane,
+    counts,
+    totalTrainees: total
+  };
+}
+
 export function parseTraineeExcel(fileData: string | ArrayBuffer): ParseExcelResult {
   const wb = XLSX.read(fileData, { type: 'binary' });
-  const wsName = wb.SheetNames[0];
-  const ws = wb.Sheets[wsName];
-  const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown[][];
+  let wsName = wb.Sheets['Main'] ? 'Main' : wb.SheetNames[0];
+  let ws = wb.Sheets[wsName];
+  let rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown[][];
+  if (!rows || rows.length < 1) {
+    for (const name of wb.SheetNames) {
+      const candidateWs = wb.Sheets[name];
+      const candidateRows = XLSX.utils.sheet_to_json(candidateWs, { header: 1 }) as unknown[][];
+      if (candidateRows && candidateRows.length > 0) {
+        wsName = name;
+        ws = candidateWs;
+        rows = candidateRows;
+        break;
+      }
+    }
+  }
 
   if (!rows || rows.length < 1) {
     throw new Error('Empty or invalid Excel sheet.');
   }
 
-  // 1. Check if the first row is data (Column 0: int 교번, Column 1: string 이름, Column 2: int 나이)
+  // 1. Check if the first row is data (Column 0: int RN, Column 1: string Name, Column 2: int Age)
   const firstRow = (rows[0] as unknown[]) || [];
   const isFirstRowData =
     firstRow.length >= 3 &&
@@ -50,6 +129,7 @@ export function parseTraineeExcel(fileData: string | ArrayBuffer): ParseExcelRes
   let rosterIdx = 0;
   let nameIdx = 1;
   let ageIdx = 2;
+  let dateIdx = -1;
 
   if (!isFirstRowData) {
     // Treat first row as Header
@@ -68,85 +148,84 @@ export function parseTraineeExcel(fileData: string | ArrayBuffer): ParseExcelRes
     if (detectedRoster !== -1) rosterIdx = detectedRoster;
     if (detectedName !== -1) nameIdx = detectedName;
     if (detectedAge !== -1) ageIdx = detectedAge;
+    const detectedDate = header.findIndex(
+      h => h === 'date' || h.includes('date') || h.includes('날짜') || h.includes('일자')
+    );
+    if (detectedDate !== -1) dateIdx = detectedDate;
   }
 
-  // Collect all valid trainee rows
-  const rawTrainees: { rn: string; name: string; age: number }[] = [];
+  // Collect all valid trainee rows and separate into Alpha (RN <= 100) and Bravo (RN >= 101)
+  const alphaRaw: { rn: string; name: string; age: number }[] = [];
+  const bravoRaw: { rn: string; name: string; age: number }[] = [];
+  let alphaDate: string | undefined = undefined;
+  let bravoDate: string | undefined = undefined;
 
   for (let i = startRowIndex; i < rows.length; i++) {
     const row = rows[i] as unknown[];
     if (!row || row.length === 0 || !row.some(cell => cell !== undefined && cell !== null && cell !== '')) continue;
 
-    // First column: Roster Number (int) - Preserve exact roster number even if some numbers are skipped
+    // Roster Number
     const rawRosterVal = row[rosterIdx];
     let rawRoster = '';
+    let parsedRn = NaN;
     if (rawRosterVal !== undefined && rawRosterVal !== null && String(rawRosterVal).trim() !== '') {
-      const parsedInt = parseInt(String(rawRosterVal).trim(), 10);
-      rawRoster = !isNaN(parsedInt) ? String(parsedInt) : String(rawRosterVal).trim();
+      parsedRn = parseInt(String(rawRosterVal).trim(), 10);
+      rawRoster = !isNaN(parsedRn) ? String(parsedRn) : String(rawRosterVal).trim();
     } else {
-      rawRoster = String(rawTrainees.length + 1);
+      rawRoster = String(alphaRaw.length + bravoRaw.length + 1);
+      parsedRn = alphaRaw.length + bravoRaw.length + 1;
     }
 
-    // Second column: Name (string)
+    // Name
     const rawNameVal = row[nameIdx];
     const rawName = (rawNameVal !== undefined && rawNameVal !== null && String(rawNameVal).trim() !== '')
       ? String(rawNameVal).trim()
       : `Trainee ${rawRoster}`;
 
-    // Third column: Age (int)
+    // Age
     const rawAgeVal = row[ageIdx];
     const parsedAge = (rawAgeVal !== undefined && rawAgeVal !== null) ? parseInt(String(rawAgeVal).trim(), 10) : 22;
     const rawAge = (!isNaN(parsedAge) && parsedAge > 0) ? parsedAge : 22;
 
-    rawTrainees.push({
-      rn: rawRoster,
-      name: rawName,
-      age: rawAge
-    });
-  }
+    const traineeObj = { rn: rawRoster, name: rawName, age: rawAge };
 
-  if (rawTrainees.length === 0) {
-    throw new Error('No trainee data found in file.');
-  }
-
-  const totalTrainees = rawTrainees.length;
-  const numLanes = 10;
-  const baseCount = Math.floor(totalTrainees / numLanes);
-  const remainder = totalTrainees % numLanes;
-
-  const counts: Record<number, number> = {};
-  for (let l = 1; l <= numLanes; l++) {
-    counts[l] = l <= remainder ? baseCount + 1 : baseCount;
-  }
-
-  const parsedTraineesByLane: Record<number, TraineeRecord[]> = {};
-  let traineePointer = 0;
-
-  for (let l = 1; l <= numLanes; l++) {
-    const laneCount = counts[l];
-    const list: TraineeRecord[] = [];
-
-    for (let pos = 1; pos <= laneCount; pos++) {
-      if (traineePointer < rawTrainees.length) {
-        const item = rawTrainees[traineePointer++];
-        list.push({
-          id: `imp-l${l}-p${pos}-${Date.now()}`,
-          rosterNumber: item.rn,
-          vestNumber: `${pos}`,
-          name: item.name,
-          age: item.age,
-          ageGroup: getAgeGroupFromAge(item.age),
-          scores: { MDL: '', MDL2: '', HRP: '', SDC: '', PLK: '', '2MR': '' }
-        });
+    // Separate by Platoon: RN <= 100 -> Alpha, RN >= 101 -> Bravo
+    if (dateIdx !== -1 && row[dateIdx] !== undefined && row[dateIdx] !== null && String(row[dateIdx]).trim() !== '') {
+      const dStr = String(row[dateIdx]).trim();
+      if (!isNaN(parsedRn) && parsedRn >= 101) {
+        if (!bravoDate) bravoDate = dStr;
+      } else {
+        if (!alphaDate) alphaDate = dStr;
       }
     }
 
-    parsedTraineesByLane[l] = list;
+    if (!isNaN(parsedRn) && parsedRn >= 101) {
+      bravoRaw.push(traineeObj);
+    } else {
+      alphaRaw.push(traineeObj);
+    }
   }
 
+  if (alphaRaw.length === 0 && bravoRaw.length === 0) {
+    throw new Error('No trainee data found in file.');
+  }
+
+  // Sort raw trainees numerically by RN within each platoon
+  alphaRaw.sort((a, b) => (parseInt(a.rn, 10) || 0) - (parseInt(b.rn, 10) || 0));
+  bravoRaw.sort((a, b) => (parseInt(a.rn, 10) || 0) - (parseInt(b.rn, 10) || 0));
+
+  const alphaResult = distributeTraineesAcrossLanes(alphaRaw, 'alpha');
+  const bravoResult = distributeTraineesAcrossLanes(bravoRaw, 'bravo');
+  const totalTrainees = alphaResult.totalTrainees + bravoResult.totalTrainees;
+
+  // Primary fallback result (Alpha if has trainees, else Bravo)
+  const primaryResult = alphaResult.totalTrainees > 0 ? alphaResult : bravoResult;
+
   return {
-    parsedTraineesByLane,
-    counts,
-    totalTrainees
+    alpha: alphaResult,
+    bravo: bravoResult,
+    totalTrainees,
+    parsedTraineesByLane: primaryResult.parsedTraineesByLane,
+    counts: primaryResult.counts
   };
 }

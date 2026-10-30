@@ -1,16 +1,12 @@
 import React, { useRef, useState, useMemo } from 'react';
 import type { TraineeRecord, LaneConfig } from '../../types/aft/aft.types';
-import { parseTraineeExcel } from '../../utils/aft/excelParser';
+import { parseTraineeExcel, type ParseExcelResult } from '../../utils/aft/excelParser';
 import { getContrastTextColor } from '../../lib/utils';
 
 interface ImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUploadRoster: (
-    parsedTrainees: Record<number, TraineeRecord[]>,
-    counts: Record<number, number>,
-    totalTrainees: number
-  ) => Promise<void>;
+  onUploadRoster: (parseResult: ParseExcelResult) => Promise<void>;
   laneTrainees?: Record<number, TraineeRecord[]>;
   laneConfigs?: Record<number, LaneConfig>;
 }
@@ -71,11 +67,11 @@ export const ImportModal: React.FC<ImportModalProps> = ({
           return;
         }
 
-        const { parsedTraineesByLane, counts, totalTrainees } = parseTraineeExcel(bstr);
+        const parseResult = parseTraineeExcel(bstr);
 
         try {
-          await onUploadRoster(parsedTraineesByLane, counts, totalTrainees);
-          setImportStatus(`✅ Successfully imported ${totalTrainees} soldiers across 10 lanes!`);
+          await onUploadRoster(parseResult);
+          setImportStatus(`✅ Successfully imported ${parseResult.totalTrainees} soldiers across 10 lanes (Alpha: ${parseResult.alpha.totalTrainees}, Bravo: ${parseResult.bravo.totalTrainees})!`);
         } catch (syncErr: any) {
           console.error('Firebase sync error:', syncErr);
           setImportStatus(`⚠️ Saved locally, but Firebase sync failed: ${syncErr?.message || syncErr}`);

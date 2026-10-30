@@ -2,11 +2,20 @@ import { useState, useEffect, useRef } from 'react';
 import { ref as dbRef, onValue, set as dbSet, get as dbGet, serverTimestamp } from 'firebase/database';
 import { db } from '../../lib/firebase';
 import { formatTime } from '../../utils/aft/timeFormatter';
+import { DEFAULT_COHORT_NAME } from '../../utils/aft/constants';
+import type { Platoon } from '../../types/aft/aft.types';
 
 export function useAftTimer(
   selectedLane: number,
-  onScoreAutoSave: (traineeId: string, eventCode: 'SDC' | 'PLK' | '2MR', timeStr: string, targetLane?: number) => void
+  onScoreAutoSave: (traineeId: string, eventCode: 'SDC' | 'PLK' | '2MR', timeStr: string, targetLane?: number) => void,
+  activeCohortId: string = DEFAULT_COHORT_NAME,
+  activePlatoon: Platoon = 'alpha'
 ) {
+  // Determine Firebase 2MR timer path based on active cohort and platoon
+  const timerPath = activeCohortId === DEFAULT_COHORT_NAME && activePlatoon === 'alpha'
+    ? 'aft_sessions/2mr_master_timer'
+    : `aft_sessions/cohorts/data/${activeCohortId}/${activePlatoon}/2mr_master_timer`;
+
   // ==========================================
   // 1. 2MR (2-Mile Run) Dedicated Master Timer
   // ==========================================
@@ -48,7 +57,7 @@ export function useAftTimer(
   // 2MR Firebase Subscription
   useEffect(() => {
     try {
-      const runRef = dbRef(db, 'aft_sessions/2mr_master_timer');
+      const runRef = dbRef(db, timerPath);
 
       dbGet(runRef)
         .then((snapshot) => {
@@ -63,10 +72,13 @@ export function useAftTimer(
                 startedInLane: data.startedInLane
               });
             }
+          } else {
+            setTwoMileRunSync({ startTime: null, status: 'idle' });
+            setTwoMileRunElapsedMs(0);
           }
         })
         .catch((err) => {
-          console.warn('Initial 2MR master timer fetch failed:', err);
+          console.warn(`Initial 2MR master timer fetch failed for ${timerPath}:`, err);
         });
 
       const unsubscribe = onValue(runRef, (snapshot) => {
@@ -81,6 +93,9 @@ export function useAftTimer(
               startedInLane: data.startedInLane
             });
           }
+        } else {
+          setTwoMileRunSync({ startTime: null, status: 'idle' });
+          setTwoMileRunElapsedMs(0);
         }
       });
 
@@ -88,7 +103,7 @@ export function useAftTimer(
     } catch (e) {
       console.warn('Failed to listen to 2MR Firebase timer:', e);
     }
-  }, []);
+  }, [timerPath]);
 
   // 2MR Tick Loop
   useEffect(() => {
@@ -111,13 +126,17 @@ export function useAftTimer(
 
   const start2MrMasterTimer = async (starterLabel: string = 'Master Clock') => {
     try {
-      const runRef = dbRef(db, 'aft_sessions/2mr_master_timer');
+      const runRef = dbRef(db, timerPath);
       await dbSet(runRef, {
         status: 'running',
         startTime: serverTimestamp(),
         startedBy: starterLabel,
         startedInLane: 'start_point'
       });
+      // Mirror to legacy if default cohort
+      if (timerPath !== 'aft_sessions/2mr_master_timer') {
+        // standalone cohort timer
+      }
     } catch (e) {
       console.warn('Failed to start 2MR Master Timer in Firebase:', e);
       setTwoMileRunSync({
@@ -131,7 +150,7 @@ export function useAftTimer(
 
   const reset2MrMasterTimer = async () => {
     try {
-      const runRef = dbRef(db, 'aft_sessions/2mr_master_timer');
+      const runRef = dbRef(db, timerPath);
       await dbSet(runRef, {
         status: 'idle',
         startTime: null,

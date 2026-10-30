@@ -1,4 +1,4 @@
-import type { EventConfig, LaneConfig, TraineeRecord } from '../../types/aft/aft.types';
+import type { EventConfig, LaneConfig, TraineeRecord, Platoon } from '../../types/aft/aft.types';
 
 export const EVENT_CONFIGS: EventConfig[] = [
   {
@@ -78,23 +78,44 @@ export const VEST_COLORS = [
   { name: 'Gray', code: '#64748B' }
 ];
 
+// LocalStorage Keys
 export const STORAGE_KEY_TRAINEES = 'aft_trainees_lane_v2';
 export const STORAGE_KEY_LANE_CONFIG = 'aft_lane_configs_v2';
 export const STORAGE_KEY_ACTIVE_COUNTS = 'aft_lane_active_counts_v2';
 export const STORAGE_KEY_RETEST_CUSTOM_TRAINEES = 'aft_retest_custom_trainees';
 
-export const createDefaultLaneTrainees = (): Record<number, TraineeRecord[]> => {
+// Cohort Management Keys
+export const STORAGE_KEY_ACTIVE_COHORT_ID = 'aft_active_cohort_id';
+export const STORAGE_KEY_COHORTS_LIST = 'aft_cohorts_list';
+export const DEFAULT_COHORT_NAME = '01-27';
+
+// Platoon Management Keys (Alpha: RN <= 100, Bravo: RN >= 101)
+export const STORAGE_KEY_ACTIVE_PLATOON = 'aft_active_platoon';
+
+export const getCohortStorageKey = (cohortId: string, baseKey: string): string => {
+  return `aft_c_${cohortId}_${baseKey}`;
+};
+
+export const getCohortPlatoonStorageKey = (cohortId: string, platoon: Platoon, baseKey: string): string => {
+  return `aft_c_${cohortId}_${platoon}_${baseKey}`;
+};
+
+export const createDefaultLaneTrainees = (platoon: Platoon = 'alpha'): Record<number, TraineeRecord[]> => {
   const result: Record<number, TraineeRecord[]> = {};
+  const baseRn = platoon === 'bravo' ? 100 : 0;
+
   for (let l = 1; l <= 10; l++) {
     const list: TraineeRecord[] = [];
     for (let r = 1; r <= 10; r++) {
+      const rnNum = baseRn + (l - 1) * 10 + r;
       list.push({
-        id: `lane-${l}-t-${r}`,
-        rosterNumber: `${(l - 1) * 10 + r}`,
+        id: `lane-${l}-${platoon}-t-${r}`,
+        rosterNumber: `${rnNum}`,
         vestNumber: `${r}`,
-        name: `Trainee ${(l - 1) * 10 + r}`,
+        name: `Trainee ${rnNum}`,
         age: 22,
         ageGroup: '22-26',
+        isDummy: true,
         scores: {
           MDL: '',
           MDL2: '',

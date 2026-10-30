@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import type { TraineeRecord, LaneConfig, EventCode } from '../../types/aft/aft.types';
+import type { TraineeRecord, LaneConfig, EventCode, Platoon } from '../../types/aft/aft.types';
 import { EVENT_CONFIGS } from '../../utils/aft/constants';
 import { calculateOfficialAftScore, formatSecondsToTime } from '../../data/aftStandards2025';
 import { parseTimeToSeconds } from '../../utils/aft/timeFormatter';
@@ -53,6 +53,9 @@ interface GradingViewProps {
   onEditRetestSoldier?: (traineeId: string, soldier: { name: string; age: number; vestNumber?: string; rosterNumber?: string }) => void;
   onRemoveRetestSoldier?: (traineeId: string) => void;
   onReorderRetestSoldiers?: (soldiers: TraineeRecord[]) => void;
+
+  activePlatoon?: Platoon;
+  onSelectPlatoon?: (platoon: Platoon) => void;
 }
 
 export const GradingView: React.FC<GradingViewProps> = ({
@@ -91,7 +94,9 @@ export const GradingView: React.FC<GradingViewProps> = ({
   onAddRetestSoldier,
   onEditRetestSoldier,
   onRemoveRetestSoldier,
-  onReorderRetestSoldiers
+  onReorderRetestSoldiers,
+  activePlatoon,
+  onSelectPlatoon
 }) => {
   const [isDualLaneModalOpen, setIsDualLaneModalOpen] = useState<boolean>(false);
   const [isManageSoldiersModalOpen, setIsManageSoldiersModalOpen] = useState<boolean>(false);
@@ -145,7 +150,7 @@ export const GradingView: React.FC<GradingViewProps> = ({
           <div className="text-center">
             <h1 className="text-base font-black tracking-wider">AFT GRADER</h1>
             <span className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">
-              {selectedLane === 99 ? 'RE-TEST' : `LANE ${selectedLane} · EVALUATION`}
+              {selectedLane === 99 ? 'RE-TEST' : `LANE ${selectedLane} · ${activePlatoon ? activePlatoon.toUpperCase() + ' · ' : ''}EVALUATION`}
             </span>
           </div>
           {/* Standards Reference & Verification Button */}
@@ -162,6 +167,44 @@ export const GradingView: React.FC<GradingViewProps> = ({
 
         {/* Main Content Area - Scrollable with Mobile Touch Support */}
         <main className="w-full flex-1 overflow-y-auto overscroll-contain px-3 py-3 flex flex-col gap-3 min-h-0">
+        {/* Platoon Switcher (Alpha RN ≤ 100 / Bravo RN ≥ 101) */}
+        {onSelectPlatoon && activePlatoon && selectedLane !== 99 && (
+          <section className="bg-white dark:bg-slate-800 p-1 rounded-xl border border-gray-200 dark:border-slate-700 shadow-xs flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => onSelectPlatoon('alpha')}
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+                activePlatoon === 'alpha'
+                  ? 'bg-blue-900 text-white shadow-xs'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+              }`}
+            >
+              <span>Alpha Platoon</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                activePlatoon === 'alpha' ? 'bg-blue-800 text-blue-100' : 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-400'
+              }`}>
+                RN ≤ 100
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSelectPlatoon('bravo')}
+              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
+                activePlatoon === 'bravo'
+                  ? 'bg-blue-900 text-white shadow-xs'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+              }`}
+            >
+              <span>Bravo Platoon</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                activePlatoon === 'bravo' ? 'bg-blue-800 text-blue-100' : 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-400'
+              }`}>
+                RN ≥ 101
+              </span>
+            </button>
+          </section>
+        )}
 
         {/* EVENT GRADING MODE (Step by Step) */}
         {!isSummaryView && currentEvent && (
@@ -329,7 +372,7 @@ export const GradingView: React.FC<GradingViewProps> = ({
             {currentEvent.code === '2MR' && selectedLane !== RETEST_LANE_NUM && secondaryLane && secondaryLaneConfig ? (
               /* Split Dual Lane View: Left = Primary Lane, Right = Secondary Lane */
               <div className="grid grid-cols-2 gap-1.5 w-full">
-                {/* Left Column: Primary Lane (기존에 채점하던 레인) */}
+                {/* Left Column: Primary Lane (Primary evaluating lane) */}
                 <div className="flex flex-col gap-1.5 min-w-0">
                   <div
                     className="flex items-center justify-between px-2 py-1 rounded-xl border border-black/10 shadow-sm"
@@ -362,7 +405,7 @@ export const GradingView: React.FC<GradingViewProps> = ({
                   </div>
                 </div>
 
-                {/* Right Column: Secondary Lane (새로 추가한 레인) */}
+                {/* Right Column: Secondary Lane (Added secondary lane) */}
                 <div className="flex flex-col gap-1.5 min-w-0">
                   <div
                     className="flex items-center justify-between px-2 py-1 rounded-xl border border-black/10 shadow-sm"

@@ -4,6 +4,8 @@ export type AgeGroup = '17-21' | '22-26' | '27-31' | '32-36' | '37-41' | '42-46'
 
 export type EventCode = 'MDL' | 'MDL2' | 'HRP' | 'SDC' | 'PLK' | '2MR';
 
+export type Platoon = 'alpha' | 'bravo';
+
 export interface TraineeRecord {
   id: string;
   rosterNumber: string; // e.g. "001", "12"
@@ -11,6 +13,7 @@ export interface TraineeRecord {
   name: string;
   age: number;
   ageGroup: AgeGroup;
+  isDummy?: boolean;
   scores: {
     MDL: string;
     MDL2?: string;
@@ -46,4 +49,15 @@ export interface EventConfig {
   placeholder: string;
   isTime?: boolean;
   desc: string;
+}
+
+export interface CohortRecord {
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  hasUploadedRoster?: boolean;
+  alphaTraineeCount?: number;
+  bravoTraineeCount?: number;
+  traineeCount?: number;
 }
