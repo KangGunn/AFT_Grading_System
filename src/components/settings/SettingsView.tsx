@@ -319,20 +319,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {Array.from({ length: 10 }, (_, i) => i + 1).map((laneNum) => {
                 const cfg = laneConfigs[laneNum];
                 const colorCode = cfg?.vestColorCode || '#2563EB';
-                const colorName = cfg?.vestColor || 'Blue';
                 const textColor = getContrastTextColor(colorCode);
 
                 return (
                   <div
                     key={laneNum}
-                    className="flex flex-col items-center justify-center py-1.5 px-1 rounded-lg border border-black/10 shadow-2xs text-center"
+                    className="flex items-center justify-center py-2 px-1 rounded-xl border border-black/10 shadow-2xs text-center font-black text-xs"
                     style={{ backgroundColor: colorCode, color: textColor }}
-                    title={`Lane ${laneNum}: ${colorName}`}
+                    title={`Lane ${laneNum}`}
                   >
-                    <span className="text-[10px] font-black opacity-80 leading-none">L{laneNum}</span>
-                    <span className="text-[11px] font-black truncate max-w-full leading-tight mt-0.5">
-                      {colorName}
-                    </span>
+                    <span>L{laneNum}</span>
                   </div>
                 );
               })}

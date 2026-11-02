@@ -51,6 +51,7 @@ export default function AftGradeView({ }: Props) {
   });
 
   // Track navigation origin
+  const [gradingTargetEventIndex, setGradingTargetEventIndex] = useState<number | null>(null);
   const [gradingSource, setGradingSource] = useState<'lane_select' | 'all_results'>('lane_select');
   const [allResultsSource, setAllResultsSource] = useState<'lane_select' | 'grading'>('lane_select');
 
@@ -313,20 +314,24 @@ export default function AftGradeView({ }: Props) {
   const handleSelectLane = (laneNum: number) => {
     setSelectedLane(laneNum);
     setGradingSource('lane_select');
+    setGradingTargetEventIndex(null);
     setCurrentView('grading');
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('aft_selected_lane', String(laneNum));
       window.localStorage.setItem('aft_current_view', 'grading');
+      window.localStorage.removeItem(`aft_event_idx_lane_${laneNum}`);
     }
   };
 
   const handleSelectReTestLane = () => {
     setSelectedLane(RETEST_LANE_NUM);
     setGradingSource('lane_select');
+    setGradingTargetEventIndex(null);
     setCurrentView('grading');
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('aft_selected_lane', String(RETEST_LANE_NUM));
       window.localStorage.setItem('aft_current_view', 'grading');
+      window.localStorage.removeItem(`aft_event_idx_lane_${RETEST_LANE_NUM}`);
     }
   };
 
@@ -343,11 +348,12 @@ export default function AftGradeView({ }: Props) {
   const handleSelectLane2Mr = (laneNum: number) => {
     setSelectedLane(laneNum);
     setGradingSource('lane_select');
+    setGradingTargetEventIndex(4); // 2MR is event index 4
     setCurrentView('grading');
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('aft_selected_lane', String(laneNum));
       window.localStorage.setItem('aft_current_view', 'grading');
-      window.localStorage.setItem(`aft_event_idx_lane_${laneNum}`, '4'); // Event index 4 is 2MR
+      window.localStorage.setItem(`aft_event_idx_lane_${laneNum}`, '4');
     }
   };
 
@@ -504,7 +510,7 @@ export default function AftGradeView({ }: Props) {
             currentTrainees={currentLaneTrainees}
             isFirebaseConnected={isFirebaseConnected}
             activePlatoon={activePlatoon}
-            onSelectPlatoon={switchPlatoon}
+            initialEventIndex={gradingTargetEventIndex}
             twoMileRunSync={timer.twoMileRunSync}
             twoMileRunElapsedMs={timer.twoMileRunElapsedMs}
             plkElapsedMs={timer.plkElapsedMs}

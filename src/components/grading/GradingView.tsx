@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { TraineeRecord, LaneConfig, EventCode, Platoon } from '../../types/aft/aft.types';
-import { EVENT_CONFIGS } from '../../utils/aft/constants';
+import { EVENT_CONFIGS, getLanePendingEventIndex } from '../../utils/aft/constants';
 import { calculateOfficialAftScore, formatSecondsToTime } from '../../data/aftStandards2025';
 import { parseTimeToSeconds } from '../../utils/aft/timeFormatter';
 import { getContrastTextColor } from '../../lib/utils';
@@ -55,7 +55,7 @@ interface GradingViewProps {
   onReorderRetestSoldiers?: (soldiers: TraineeRecord[]) => void;
 
   activePlatoon?: Platoon;
-  onSelectPlatoon?: (platoon: Platoon) => void;
+  initialEventIndex?: number | null;
 }
 
 export const GradingView: React.FC<GradingViewProps> = ({
@@ -96,7 +96,7 @@ export const GradingView: React.FC<GradingViewProps> = ({
   onRemoveRetestSoldier,
   onReorderRetestSoldiers,
   activePlatoon,
-  onSelectPlatoon
+  initialEventIndex
 }) => {
   const [isDualLaneModalOpen, setIsDualLaneModalOpen] = useState<boolean>(false);
   const [isManageSoldiersModalOpen, setIsManageSoldiersModalOpen] = useState<boolean>(false);
@@ -104,21 +104,22 @@ export const GradingView: React.FC<GradingViewProps> = ({
   const [activeHrpTrainee, setActiveHrpTrainee] = useState<TraineeRecord | null>(null);
 
   const [currentEventIndex, setCurrentEventIndex] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = window.localStorage.getItem(`aft_event_idx_lane_${selectedLane}`);
-      if (saved !== null) {
-        const parsed = parseInt(saved, 10);
-        if (parsed >= 0 && parsed <= EVENT_CONFIGS.length) return parsed;
-      }
+    if (typeof initialEventIndex === 'number' && initialEventIndex >= 0 && initialEventIndex <= EVENT_CONFIGS.length) {
+      return initialEventIndex;
     }
-    return 0;
+    return getLanePendingEventIndex(currentTrainees);
   });
+
+  useEffect(() => {
+    if (typeof initialEventIndex === 'number' && initialEventIndex >= 0 && initialEventIndex <= EVENT_CONFIGS.length) {
+      setCurrentEventIndex(initialEventIndex);
+    } else {
+      setCurrentEventIndex(getLanePendingEventIndex(currentTrainees));
+    }
+  }, [selectedLane, initialEventIndex]);
 
   const handleSetEventIndex = (idx: number) => {
     setCurrentEventIndex(idx);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(`aft_event_idx_lane_${selectedLane}`, String(idx));
-    }
   };
 
   const isSummaryView = currentEventIndex === EVENT_CONFIGS.length;
@@ -167,45 +168,6 @@ export const GradingView: React.FC<GradingViewProps> = ({
 
         {/* Main Content Area - Scrollable with Mobile Touch Support */}
         <main className="w-full flex-1 overflow-y-auto overscroll-contain px-3 py-3 flex flex-col gap-3 min-h-0">
-        {/* Platoon Switcher (Alpha RN ≤ 100 / Bravo RN ≥ 101) */}
-        {onSelectPlatoon && activePlatoon && selectedLane !== 99 && (
-          <section className="bg-white dark:bg-slate-800 p-1 rounded-xl border border-gray-200 dark:border-slate-700 shadow-xs flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              onClick={() => onSelectPlatoon('alpha')}
-              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
-                activePlatoon === 'alpha'
-                  ? 'bg-blue-900 text-white shadow-xs'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-              }`}
-            >
-              <span>Alpha Platoon</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
-                activePlatoon === 'alpha' ? 'bg-blue-800 text-blue-100' : 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-400'
-              }`}>
-                RN ≤ 100
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onSelectPlatoon('bravo')}
-              className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 active:scale-95 ${
-                activePlatoon === 'bravo'
-                  ? 'bg-blue-900 text-white shadow-xs'
-                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
-              }`}
-            >
-              <span>Bravo Platoon</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
-                activePlatoon === 'bravo' ? 'bg-blue-800 text-blue-100' : 'bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-400'
-              }`}>
-                RN ≥ 101
-              </span>
-            </button>
-          </section>
-        )}
-
         {/* EVENT GRADING MODE (Step by Step) */}
         {!isSummaryView && currentEvent && (
           <>
@@ -571,7 +533,7 @@ export const GradingView: React.FC<GradingViewProps> = ({
                       >
                         {selectedLane === 99
                           ? 'All Failed Soldiers · 5-Event Results'
-                          : `Vest: ${currentLaneConfig.vestColor} · 5-Event Results`}
+                          : '5-Event Results'}
                       </p>
                     </div>
 

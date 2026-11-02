@@ -1,5 +1,6 @@
 import React from 'react';
 import type { LaneConfig, TraineeRecord } from '../../types/aft/aft.types';
+import { EVENT_CONFIGS, getLanePendingEventIndex } from '../../utils/aft/constants';
 
 interface LaneCardProps {
   laneNum: number;
@@ -9,14 +10,6 @@ interface LaneCardProps {
   trainees?: TraineeRecord[];
   onSelectLane: (laneNum: number) => void;
 }
-
-const EVENTS_IN_ORDER = [
-  { code: 'MDL', label: 'MDL' },
-  { code: 'HRP', label: 'HRP' },
-  { code: 'SDC', label: 'SDC' },
-  { code: 'PLK', label: 'PLK' },
-  { code: '2MR', label: '2MR' }
-] as const;
 
 export const LaneCard: React.FC<LaneCardProps> = ({
   laneNum,
@@ -30,21 +23,10 @@ export const LaneCard: React.FC<LaneCardProps> = ({
   const activeTrainees = trainees.slice(0, count);
 
   const getLaneStage = (): { label: string; isComplete?: boolean } => {
-    if (activeTrainees.length === 0) return { label: 'MDL' };
-
-    for (const ev of EVENTS_IN_ORDER) {
-      const isEventComplete = activeTrainees.every((t) => {
-        if (ev.code === 'MDL') {
-          return (t.scores.MDL || '').trim() !== '' || (t.scores.MDL2 || '').trim() !== '';
-        }
-        return (t.scores[ev.code] || '').trim() !== '';
-      });
-
-      if (!isEventComplete) {
-        return { label: ev.label };
-      }
+    const pendingIdx = getLanePendingEventIndex(activeTrainees);
+    if (pendingIdx < EVENT_CONFIGS.length) {
+      return { label: EVENT_CONFIGS[pendingIdx].code };
     }
-
     return { label: 'Completed', isComplete: true };
   };
 

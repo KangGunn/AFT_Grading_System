@@ -61,6 +61,21 @@ export const EVENT_CONFIGS: EventConfig[] = [
   }
 ];
 
+export const DEFAULT_VEST_COLOR_CODES: string[] = [
+  '#EF4444', // Red
+  '#3B82F6', // Blue
+  '#10B981', // Green
+  '#F59E0B', // Yellow
+  '#8B5CF6', // Purple
+  '#EC4899', // Pink
+  '#F97316', // Orange
+  '#14B8A6', // Teal
+  '#6366F1', // Indigo
+  '#06B6D4', // Cyan
+  '#84CC16', // Lime
+  '#64748B'  // Gray
+];
+
 export const VEST_COLORS = [
   { name: 'Red', code: '#EF4444' },
   { name: 'Blue', code: '#3B82F6' },
@@ -83,6 +98,35 @@ export const STORAGE_KEY_TRAINEES = 'aft_trainees_lane_v2';
 export const STORAGE_KEY_LANE_CONFIG = 'aft_lane_configs_v2';
 export const STORAGE_KEY_ACTIVE_COUNTS = 'aft_lane_active_counts_v2';
 export const STORAGE_KEY_RETEST_CUSTOM_TRAINEES = 'aft_retest_custom_trainees';
+export const STORAGE_KEY_AVAILABLE_VEST_COLORS = 'aft_available_vest_colors';
+
+export function loadAvailableVestColors(): string[] {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const saved = window.localStorage.getItem(STORAGE_KEY_AVAILABLE_VEST_COLORS);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const valid = parsed.filter((c: any) => typeof c === 'string' && c.startsWith('#'));
+          if (valid.length > 0) return valid;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load available vest colors:', e);
+  }
+  return DEFAULT_VEST_COLOR_CODES;
+}
+
+export function saveAvailableVestColors(colors: string[]): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(STORAGE_KEY_AVAILABLE_VEST_COLORS, JSON.stringify(colors));
+    }
+  } catch (e) {
+    console.warn('Failed to save available vest colors:', e);
+  }
+}
 
 // Cohort Management Keys
 export const STORAGE_KEY_ACTIVE_COHORT_ID = 'aft_active_cohort_id';
@@ -133,13 +177,39 @@ export const createDefaultLaneTrainees = (platoon: Platoon = 'alpha'): Record<nu
 
 export const createDefaultLaneConfigs = (): Record<number, LaneConfig> => {
   const result: Record<number, LaneConfig> = {};
+  const available = loadAvailableVestColors();
   for (let l = 1; l <= 10; l++) {
-    const color = VEST_COLORS[(l - 1) % VEST_COLORS.length];
+    const colorCode = available[(l - 1) % available.length] || DEFAULT_VEST_COLOR_CODES[(l - 1) % DEFAULT_VEST_COLOR_CODES.length];
     result[l] = {
       laneNumber: l,
-      vestColor: color.name,
-      vestColorCode: color.code
+      vestColor: colorCode,
+      vestColorCode: colorCode
     };
   }
   return result;
 };
+
+/**
+ * Determines the next pending event index for a lane based on its trainees' scores.
+ * 0: MDL, 1: HRP, 2: SDC, 3: PLK, 4: 2MR.
+ * If all 5 events are completed, returns EVENT_CONFIGS.length (5), which opens the Result screen.
+ */
+export function getLanePendingEventIndex(trainees: TraineeRecord[]): number {
+  if (!trainees || trainees.length === 0) return 0;
+
+  for (let idx = 0; idx < EVENT_CONFIGS.length; idx++) {
+    const code = EVENT_CONFIGS[idx].code;
+    const isComplete = trainees.every((t) => {
+      if (code === 'MDL') {
+        return (t.scores?.MDL || '').trim() !== '' || (t.scores?.MDL2 || '').trim() !== '';
+      }
+      return (t.scores?.[code] || '').trim() !== '';
+    });
+
+    if (!isComplete) {
+      return idx;
+    }
+  }
+
+  return EVENT_CONFIGS.length;
+}

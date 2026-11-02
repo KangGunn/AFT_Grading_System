@@ -72,7 +72,7 @@ export const DualLaneModal: React.FC<DualLaneModalProps> = ({
                     color: getContrastTextColor(currentSecondaryConfig.vestColorCode, currentSecondaryConfig.vestColor)
                   }}
                 >
-                  Lane {selectedSecondaryLane} · {currentSecondaryConfig.vestColor}
+                  Lane {selectedSecondaryLane}
                 </span>
               </div>
               <p className="text-[11px] text-gray-600 dark:text-gray-300">
@@ -137,7 +137,7 @@ export const DualLaneModal: React.FC<DualLaneModalProps> = ({
                         </span>
                         <div className="text-left">
                           <div className="text-xs font-black text-gray-900 dark:text-white">
-                            {cfg.vestColor} Vest
+                            Lane {laneNum}
                           </div>
                           <div className="text-[10px] text-gray-500 dark:text-gray-400">
                             {count} Soldiers

@@ -753,7 +753,7 @@ export const AllResultsView: React.FC<AllResultsViewProps> = ({
                             backgroundColor: item.laneConfig.vestColorCode,
                             color: badgeTextColor
                           }}
-                          title={`Lane ${item.lane} (${item.laneConfig.vestColor})`}
+                          title={`Lane ${item.lane}`}
                         >
                           {item.lane}
                         </span>
